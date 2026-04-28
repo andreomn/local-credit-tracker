@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Top 30 (CDI/IPCA/Preço)</h2>
+  <p id="ref"></p>
+  <pre id="out">Carregando...</pre>
+</div>
+<script>
+fetch('/tables').then(r=>r.json()).then(data=>{
+  document.getElementById('ref').innerText = 'Data de referência: ' + (data.reference_date || '-');
+  document.getElementById('out').innerText = JSON.stringify(data, null, 2);
+});
+</script>
+{% endblock %}

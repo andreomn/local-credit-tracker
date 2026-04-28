@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}CVM Filings{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Filings por emissor</h2>
+  <input id="issuer" placeholder="Ex: PETROBRAS" />
+  <button onclick="run()">Buscar</button>
+  <pre id="out"></pre>
+</div>
+<script>
+function run(){
+  const issuer = document.getElementById('issuer').value.trim();
+  fetch('/cvm-filings?issuer=' + encodeURIComponent(issuer)).then(r=>r.json()).then(data=>{
+    document.getElementById('out').innerText = JSON.stringify(data, null, 2);
+  });
+}
+</script>
+{% endblock %}

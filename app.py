@@ -737,6 +737,27 @@ def build_latest_rows(limit=None):
 def index():
     return render_template("legacy_index.html")
 
+
+
+@app.route("/dashboard")
+def dashboard_page():
+    return render_template("dashboard.html")
+
+
+@app.route("/debentures")
+def debentures_page():
+    return render_template("debentures.html")
+
+
+@app.route("/trades-page")
+def trades_page():
+    return render_template("trades.html")
+
+
+@app.route("/cvm-page")
+def cvm_page():
+    return render_template("cvm.html")
+
 @app.route("/data")
 def data_route():
     code = request.args.get("code", "").strip()

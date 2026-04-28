@@ -19,3 +19,5 @@ gcloud run deploy local-credit-tracker \
   --image gcr.io/debenture-tracker/local-credit-tracker \
   --region southamerica-east1 \
   --allow-unauthenticated
+
+test deploy

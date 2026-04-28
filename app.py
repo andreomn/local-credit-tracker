@@ -758,6 +758,11 @@ def trades_page():
 def cvm_page():
     return render_template("cvm.html")
 
+
+@app.route("/cvm-page")
+def cvm_page():
+    return render_template("cvm.html")
+
 @app.route("/data")
 def data_route():
     code = request.args.get("code", "").strip()

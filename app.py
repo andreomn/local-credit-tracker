@@ -11,7 +11,7 @@ import difflib
 from datetime import date as date_cls, timedelta, datetime
 
 import requests
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify, Response, render_template
 from google.cloud import storage
 
 GCS_BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME", "debentures-anbima-am")
@@ -2552,6 +2552,27 @@ def index():
 """
     return Response(html, mimetype="text/html")
 
+
+
+
+@app.route("/dashboard")
+def dashboard_page():
+    return render_template("dashboard.html")
+
+
+@app.route("/debentures")
+def debentures_page():
+    return render_template("debentures.html")
+
+
+@app.route("/trades-page")
+def trades_page():
+    return render_template("trades.html")
+
+
+@app.route("/cvm-page")
+def cvm_page():
+    return render_template("cvm.html")
 
 @app.route("/data")
 def data_route():

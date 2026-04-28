@@ -738,36 +738,23 @@ def index():
     return render_template("legacy_index.html")
 
 @app.route("/dashboard", endpoint="page_dashboard")
-
-
-@app.route("/dashboard")
-def dashboard_page():
+def page_dashboard_view():
     return render_template("dashboard.html")
 
 
 @app.route("/debentures", endpoint="page_debentures")
-@app.route("/debentures")
-def debentures_page():
+def page_debentures_view():
     return render_template("debentures.html")
 
 
 @app.route("/trades-page", endpoint="page_trades")
-def trades_page():
+def page_trades_view():
     return render_template("trades.html")
 
 
 @app.route("/cvm-page", endpoint="page_cvm")
-def cvm_page():
+def page_cvm_view():
     return render_template("cvm.html")
-@app.route("/trades-page")
-def trades_page():
-    return render_template("trades.html")
-
-
-@app.route("/cvm-page")
-def cvm_page():
-    return render_template("cvm.html")
-
 
 @app.route("/cvm-page")
 def cvm_page():

@@ -756,6 +756,9 @@ def page_trades_view():
 def page_cvm_view():
     return render_template("cvm.html")
 
+@app.route("/cvm-page")
+def cvm_page():
+    return render_template("cvm.html")
 
 @app.route("/data")
 def data_route():

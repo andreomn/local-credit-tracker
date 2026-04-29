@@ -29,15 +29,7 @@ CVM_USER_AGENT = os.environ.get(
     "CVM_USER_AGENT",
     "Mozilla/5.0 (compatible; CVMFilingsTracker/1.0; +https://dados.cvm.gov.br)",
 )
-CVM_IPE_ZIP_URL = (
-    "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/IPE/DADOS/"
-    "ipe_cia_aberta_{year}.zip"
-)
-
-# Fallback live do ENET: o ZIP de Dados Abertos pode atrasar intraday.
-CVM_ENET_BASE_URL = "https://www.rad.cvm.gov.br/ENET/frmConsultaExternaCVM.aspx"
-CVM_ENET_TIMEOUT = int(os.environ.get("CVM_ENET_TIMEOUT", "45"))
-CVM_ENET_LIVE_FALLBACK = os.environ.get("CVM_ENET_LIVE_FALLBACK", "1").lower() not in ("0", "false", "no")
+from services.gcs_storage import build_blob_name, download_gcs_text
 
 app = Flask(__name__)
 

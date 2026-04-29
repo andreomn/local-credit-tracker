@@ -67,19 +67,30 @@ TABLE_LIMIT = 30
 TRADES_LOOKBACK_DAYS = 10
 
 
+# ============================================================
+# Infra helpers (GCS + cache)
+# ============================================================
+def _build_blob_name(prefix: str, filename: str) -> str:
+    return prefix.rstrip("/") + "/" + filename
+
+
 def get_history_blob_name() -> str:
-    prefix = GCS_PREFIX.rstrip("/") + "/"
-    return prefix + "historico-anbima.json"
+    return _build_blob_name(GCS_PREFIX, "historico-anbima.json")
 
 
 def get_volume_blob_name() -> str:
-    prefix = B3_INFO_PREFIX.rstrip("/") + "/"
-    return prefix + B3_INFO_FILENAME
+    return _build_blob_name(B3_INFO_PREFIX, B3_INFO_FILENAME)
 
 
 def get_trades_blob_name() -> str:
-    prefix = B3_TRADES_PREFIX.rstrip("/") + "/"
-    return prefix + B3_TRADES_FILENAME
+    return _build_blob_name(B3_TRADES_PREFIX, B3_TRADES_FILENAME)
+
+
+def _download_gcs_text(blob_name: str, encoding: str):
+    client = storage.Client()
+    bucket = client.bucket(GCS_BUCKET_NAME)
+    blob = bucket.blob(blob_name)
+    return blob.download_as_text(encoding=encoding)
 
 
 def is_cache_valid(last_load_time):
@@ -99,14 +110,11 @@ def load_history():
         return _history_cache
 
     now = time.time()
-    client = storage.Client()
-    bucket = client.bucket(GCS_BUCKET_NAME)
     blob_name = get_history_blob_name()
-    blob = bucket.blob(blob_name)
 
     print(f"Carregando histórico de gs://{GCS_BUCKET_NAME}/{blob_name}...")
     t0 = time.time()
-    text = blob.download_as_text(encoding="utf-8")
+    text = _download_gcs_text(blob_name, encoding="utf-8")
     print(f"Download histórico ANBIMA concluído em {time.time() - t0:.1f}s | tamanho={len(text)/1024/1024:.1f} MB")
 
     t1 = time.time()
@@ -127,14 +135,11 @@ def load_volume_map():
         return _volume_cache
 
     now = time.time()
-    client = storage.Client()
-    bucket = client.bucket(GCS_BUCKET_NAME)
     blob_name = get_volume_blob_name()
-    blob = bucket.blob(blob_name)
 
     print(f"Carregando CSV de volumes de gs://{GCS_BUCKET_NAME}/{blob_name}...")
     t0 = time.time()
-    text = blob.download_as_text(encoding="latin1")
+    text = _download_gcs_text(blob_name, encoding="latin1")
     print(f"Download CSV volumes concluído em {time.time() - t0:.1f}s | tamanho={len(text)/1024/1024:.1f} MB")
 
     reader = csv.DictReader(io.StringIO(text), delimiter=";")
@@ -495,14 +500,11 @@ def load_trades_history():
             return _trades_cache
 
         now = time.time()
-        client = storage.Client()
-        bucket = client.bucket(GCS_BUCKET_NAME)
         blob_name = get_trades_blob_name()
-        blob = bucket.blob(blob_name)
 
         print(f"Carregando trades de gs://{GCS_BUCKET_NAME}/{blob_name}...")
         t0 = time.time()
-        text = blob.download_as_text(encoding="utf-8")
+        text = _download_gcs_text(blob_name, encoding="utf-8")
         print(
             f"Download trades concluído em {time.time() - t0:.1f}s | "
             f"tamanho={len(text)/1024/1024:.1f} MB"

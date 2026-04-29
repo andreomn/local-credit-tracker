@@ -12,32 +12,22 @@ from datetime import date as date_cls, timedelta, datetime
 
 import requests
 from flask import Flask, request, jsonify, Response
-from google.cloud import storage
-
-GCS_BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME", "debentures-anbima-am")
-GCS_PREFIX = os.environ.get("GCS_PREFIX", "anbima_debentures/")
-B3_INFO_PREFIX = os.environ.get("B3_INFO_PREFIX", "b3_infos/")
-B3_INFO_FILENAME = os.environ.get("B3_INFO_FILENAME", "Debentures.csv")
-
-B3_TRADES_PREFIX = os.environ.get("B3_TRADES_PREFIX", "b3_trades/")
-B3_TRADES_FILENAME = os.environ.get("B3_TRADES_FILENAME", "historico-trades.json")
-
-# CVM Filings config. This is fully isolated from ANBIMA/B3 logic.
-CVM_LAST_DAYS = int(os.environ.get("CVM_LAST_DAYS", "30"))
-CVM_REQUEST_TIMEOUT = int(os.environ.get("CVM_REQUEST_TIMEOUT", "90"))
-CVM_USER_AGENT = os.environ.get(
-    "CVM_USER_AGENT",
-    "Mozilla/5.0 (compatible; CVMFilingsTracker/1.0; +https://dados.cvm.gov.br)",
+from config import (
+    GCS_BUCKET_NAME,
+    GCS_PREFIX,
+    B3_INFO_PREFIX,
+    B3_INFO_FILENAME,
+    B3_TRADES_PREFIX,
+    B3_TRADES_FILENAME,
+    CVM_LAST_DAYS,
+    CVM_REQUEST_TIMEOUT,
+    CVM_USER_AGENT,
+    CVM_IPE_ZIP_URL,
+    CVM_ENET_BASE_URL,
+    CVM_ENET_TIMEOUT,
+    CVM_ENET_LIVE_FALLBACK,
 )
-CVM_IPE_ZIP_URL = (
-    "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/IPE/DADOS/"
-    "ipe_cia_aberta_{year}.zip"
-)
-
-# Fallback live do ENET: o ZIP de Dados Abertos pode atrasar intraday.
-CVM_ENET_BASE_URL = "https://www.rad.cvm.gov.br/ENET/frmConsultaExternaCVM.aspx"
-CVM_ENET_TIMEOUT = int(os.environ.get("CVM_ENET_TIMEOUT", "45"))
-CVM_ENET_LIVE_FALLBACK = os.environ.get("CVM_ENET_LIVE_FALLBACK", "1").lower() not in ("0", "false", "no")
+from services.gcs_storage import build_blob_name, download_gcs_text
 
 app = Flask(__name__)
 
@@ -67,19 +57,27 @@ TABLE_LIMIT = 30
 TRADES_LOOKBACK_DAYS = 10
 
 
+# ============================================================
+# Infra helpers (GCS + cache)
+# ============================================================
+def _build_blob_name(prefix: str, filename: str) -> str:
+    return build_blob_name(prefix, filename)
+
+
 def get_history_blob_name() -> str:
-    prefix = GCS_PREFIX.rstrip("/") + "/"
-    return prefix + "historico-anbima.json"
+    return _build_blob_name(GCS_PREFIX, "historico-anbima.json")
 
 
 def get_volume_blob_name() -> str:
-    prefix = B3_INFO_PREFIX.rstrip("/") + "/"
-    return prefix + B3_INFO_FILENAME
+    return _build_blob_name(B3_INFO_PREFIX, B3_INFO_FILENAME)
 
 
 def get_trades_blob_name() -> str:
-    prefix = B3_TRADES_PREFIX.rstrip("/") + "/"
-    return prefix + B3_TRADES_FILENAME
+    return _build_blob_name(B3_TRADES_PREFIX, B3_TRADES_FILENAME)
+
+
+def _download_gcs_text(blob_name: str, encoding: str):
+    return download_gcs_text(GCS_BUCKET_NAME, blob_name, encoding)
 
 
 def is_cache_valid(last_load_time):
@@ -99,14 +97,11 @@ def load_history():
         return _history_cache
 
     now = time.time()
-    client = storage.Client()
-    bucket = client.bucket(GCS_BUCKET_NAME)
     blob_name = get_history_blob_name()
-    blob = bucket.blob(blob_name)
 
     print(f"Carregando histórico de gs://{GCS_BUCKET_NAME}/{blob_name}...")
     t0 = time.time()
-    text = blob.download_as_text(encoding="utf-8")
+    text = _download_gcs_text(blob_name, encoding="utf-8")
     print(f"Download histórico ANBIMA concluído em {time.time() - t0:.1f}s | tamanho={len(text)/1024/1024:.1f} MB")
 
     t1 = time.time()
@@ -127,14 +122,11 @@ def load_volume_map():
         return _volume_cache
 
     now = time.time()
-    client = storage.Client()
-    bucket = client.bucket(GCS_BUCKET_NAME)
     blob_name = get_volume_blob_name()
-    blob = bucket.blob(blob_name)
 
     print(f"Carregando CSV de volumes de gs://{GCS_BUCKET_NAME}/{blob_name}...")
     t0 = time.time()
-    text = blob.download_as_text(encoding="latin1")
+    text = _download_gcs_text(blob_name, encoding="latin1")
     print(f"Download CSV volumes concluído em {time.time() - t0:.1f}s | tamanho={len(text)/1024/1024:.1f} MB")
 
     reader = csv.DictReader(io.StringIO(text), delimiter=";")
@@ -495,14 +487,11 @@ def load_trades_history():
             return _trades_cache
 
         now = time.time()
-        client = storage.Client()
-        bucket = client.bucket(GCS_BUCKET_NAME)
         blob_name = get_trades_blob_name()
-        blob = bucket.blob(blob_name)
 
         print(f"Carregando trades de gs://{GCS_BUCKET_NAME}/{blob_name}...")
         t0 = time.time()
-        text = blob.download_as_text(encoding="utf-8")
+        text = _download_gcs_text(blob_name, encoding="utf-8")
         print(
             f"Download trades concluído em {time.time() - t0:.1f}s | "
             f"tamanho={len(text)/1024/1024:.1f} MB"

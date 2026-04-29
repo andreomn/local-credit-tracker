@@ -4,35 +4,165 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{% block title %}Local Credit Tracker{% endblock %}</title>
+  <link rel="icon" type="image/png" href="/static/favicon.png?v=4">
+  <link rel="shortcut icon" type="image/png" href="/static/favicon.png?v=4">
   <style>
-    :root { --blue:#0b3b8f; --line:#dfe3eb; --bg:#f7f9fc; --text:#1f2937; }
-    body { font-family: Inter, Arial, sans-serif; margin:0; background:var(--bg); color:var(--text); }
-    .container { max-width: 1200px; margin: 28px auto; padding: 0 16px; }
-    h1 { margin:0 0 14px 0; font-size: 48px; }
-    nav { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
-    nav a { text-decoration:none; color:var(--blue); font-weight:700; padding:8px 12px; border:1px solid var(--line); border-radius:999px; background:#fff; }
-    nav a:hover { background:#eef4ff; }
-    .card { border:1px solid var(--line); border-radius:10px; padding:16px; margin-top:16px; background:#fff; }
-    .muted { color:#6b7280; font-size:14px; }
-    table { width:100%; border-collapse:collapse; margin-top:12px; background:#fff; }
-    th, td { border-bottom:1px solid var(--line); padding:8px 10px; font-size:14px; text-align:left; }
-    th { background:#f9fbff; position: sticky; top:0; }
-    .table-wrap { overflow:auto; max-height: 420px; border:1px solid var(--line); border-radius:8px; }
-    .grid { display:grid; grid-template-columns:1fr; gap:16px; }
-    @media (min-width: 1100px) { .grid { grid-template-columns:1fr 1fr; } }
+    :root {
+      --blue: #070047;
+      --blue-dark: #040032;
+      --line: #dde2ee;
+      --soft: #f4f6fb;
+      --text: #222;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: "Times New Roman", Times, serif;
+      max-width: 1360px;
+      margin: 30px auto 60px auto;
+      padding: 0 14px 30px 14px;
+      color: var(--text);
+      background: #ffffff;
+    }
+
+    .hero-banner {
+      width: 100%;
+      background: linear-gradient(135deg, #070047 0%, #120066 100%);
+      border-radius: 8px;
+      padding: 24px 28px 20px 28px;
+      margin-bottom: 24px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+
+    h1 {
+      text-align: left;
+      font-size: 34px;
+      margin-top: 0;
+      margin-bottom: 10px;
+      letter-spacing: 0.03em;
+      color: #f5f6fb;
+      font-weight: 700;
+      position: relative;
+    }
+
+    h1::after {
+      content: "";
+      display: block;
+      width: 180px;
+      height: 2px;
+      margin: 10px 0 0 0;
+      background: linear-gradient(to right, rgba(243,245,250,0.95), rgba(243,245,250,0.15));
+    }
+
+    .subtitle {
+      text-align: left;
+      color: #d9dceb;
+      font-size: 13px;
+      margin-bottom: 0;
+    }
+
+    nav.top-menu {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin: 4px auto 26px auto;
+      flex-wrap: wrap;
+    }
+
+    .menu-btn {
+      text-decoration: none;
+      display: inline-block;
+      background: #ffffff;
+      color: var(--blue);
+      border: 1px solid var(--blue);
+      min-width: 165px;
+      padding: 8px 16px;
+      border-radius: 999px;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .menu-btn:hover { background: #eef2fb; }
+    .menu-btn.active { background: var(--blue); color: #ffffff; }
+
+    .section-card, .card {
+      border: 1px solid #e4e8f2;
+      border-radius: 6px;
+      padding: 18px;
+      background: #ffffff;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+      margin-bottom: 24px;
+    }
+
+    h2, h3 { color: var(--blue); }
+
+    input[type="text"], input:not([type]), select {
+      padding: 6px 8px;
+      font-size: 14px;
+      border: 1px solid #b9c2d0;
+      border-radius: 3px;
+      font-family: "Times New Roman", Times, serif;
+      min-height: 32px;
+    }
+
+    button {
+      padding: 6px 16px;
+      font-size: 14px;
+      cursor: pointer;
+      border-radius: 3px;
+      border: 1px solid var(--blue);
+      background-color: var(--blue);
+      color: #fff;
+      font-weight: 600;
+      font-family: "Times New Roman", Times, serif;
+      min-height: 32px;
+    }
+
+    button:hover { background-color: var(--blue-dark); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid #dde2ee;
+      margin-bottom: 18px;
+      table-layout: fixed;
+    }
+
+    th, td {
+      border: 1px solid #dde2ee;
+      padding: 8px 8px;
+      text-align: center;
+      font-size: 14px;
+      word-wrap: break-word;
+    }
+
+    th {
+      background: #f4f6fb;
+      color: #1d2550;
+      font-weight: 700;
+    }
+
+    .table-wrap { overflow-x: auto; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    @media (min-width: 1100px) { .grid { grid-template-columns: 1fr 1fr; } }
+    .muted { color: #555; font-size: 13px; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Local Credit Tracker</h1>
-    <nav>
-      <a href="/dashboard">Dashboard</a>
-      <a href="/debentures">Debêntures</a>
-      <a href="/trades-page">Trades B3</a>
-      <a href="/cvm-page">CVM Filings</a>
-      <a href="/">Página legada</a>
-    </nav>
-    {% block content %}{% endblock %}
+  <div class="hero-banner">
+    <h1>Local Public Credit Tracker</h1>
+    <div class="subtitle">ANBIMA pricing, indicative yields, B3 secondary market trades and CVM filings</div>
   </div>
+
+  {% set p = request.path %}
+  <nav class="top-menu">
+    <a class="menu-btn {% if p == '/dashboard' %}active{% endif %}" href="/dashboard">Debenture Tracker</a>
+    <a class="menu-btn {% if p == '/trades-page' %}active{% endif %}" href="/trades-page">B3 Trades</a>
+    <a class="menu-btn {% if p == '/' %}active{% endif %}" href="/">All Data</a>
+    <a class="menu-btn {% if p == '/cvm-page' %}active{% endif %}" href="/cvm-page">CVM Filings</a>
+  </nav>
+
+  {% block content %}{% endblock %}
 </body>
 </html>

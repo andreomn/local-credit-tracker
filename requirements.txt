@@ -1,0 +1,9 @@
+flask
+google-cloud-storage
+requests
+beautifulsoup4
+lxml
+gunicorn
+openpyxl
+requests
+ijson

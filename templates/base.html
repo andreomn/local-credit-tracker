@@ -5,23 +5,34 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{% block title %}Local Credit Tracker{% endblock %}</title>
   <style>
-    body { font-family: Arial, sans-serif; max-width: 1100px; margin: 24px auto; padding: 0 16px; }
-    nav a { margin-right: 12px; text-decoration: none; color: #0b3b8f; font-weight: 600; }
-    .card { border:1px solid #ddd; border-radius:8px; padding:16px; margin-top:16px; }
-    input, select, button { padding: 8px; margin-right: 8px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-    th, td { border: 1px solid #ddd; padding: 8px; font-size: 14px; }
+    :root { --blue:#0b3b8f; --line:#dfe3eb; --bg:#f7f9fc; --text:#1f2937; }
+    body { font-family: Inter, Arial, sans-serif; margin:0; background:var(--bg); color:var(--text); }
+    .container { max-width: 1200px; margin: 28px auto; padding: 0 16px; }
+    h1 { margin:0 0 14px 0; font-size: 48px; }
+    nav { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+    nav a { text-decoration:none; color:var(--blue); font-weight:700; padding:8px 12px; border:1px solid var(--line); border-radius:999px; background:#fff; }
+    nav a:hover { background:#eef4ff; }
+    .card { border:1px solid var(--line); border-radius:10px; padding:16px; margin-top:16px; background:#fff; }
+    .muted { color:#6b7280; font-size:14px; }
+    table { width:100%; border-collapse:collapse; margin-top:12px; background:#fff; }
+    th, td { border-bottom:1px solid var(--line); padding:8px 10px; font-size:14px; text-align:left; }
+    th { background:#f9fbff; position: sticky; top:0; }
+    .table-wrap { overflow:auto; max-height: 420px; border:1px solid var(--line); border-radius:8px; }
+    .grid { display:grid; grid-template-columns:1fr; gap:16px; }
+    @media (min-width: 1100px) { .grid { grid-template-columns:1fr 1fr; } }
   </style>
 </head>
 <body>
-  <h1>Local Credit Tracker</h1>
-  <nav>
-    <a href="/dashboard">Dashboard</a>
-    <a href="/debentures">Debêntures</a>
-    <a href="/trades-page">Trades B3</a>
-    <a href="/cvm-page">CVM Filings</a>
-    <a href="/">Página legada</a>
-  </nav>
-  {% block content %}{% endblock %}
+  <div class="container">
+    <h1>Local Credit Tracker</h1>
+    <nav>
+      <a href="/dashboard">Dashboard</a>
+      <a href="/debentures">Debêntures</a>
+      <a href="/trades-page">Trades B3</a>
+      <a href="/cvm-page">CVM Filings</a>
+      <a href="/">Página legada</a>
+    </nav>
+    {% block content %}{% endblock %}
+  </div>
 </body>
 </html>

@@ -21,6 +21,7 @@ def issuers_route():
 
 
 @app.route("/issuer_data")
+@app.route("/issuer-data")
 def issuer_data_route():
     return legacy.issuer_data_route()
 

@@ -1622,6 +1622,11 @@ def cvm_enet_row_to_final(row, issuer_query, matched_codes=None):
             href = m.group(1).replace("&amp;", "&")
             online_link = href if href.lower().startswith("http") else "https://www.rad.cvm.gov.br/ENET/" + href.lstrip("/")
         if not online_link:
+            m = re.search(r"OpenPopUpVer\('([^']+)'", raw_join, flags=re.I)
+            if m:
+                href = m.group(1).replace("&amp;", "&")
+                online_link = href if href.lower().startswith("http") else "https://www.rad.cvm.gov.br/ENET/" + href.lstrip("/")
+        if not online_link:
             seq = cvm_extract_sequence_from_text(raw_join)
             if seq:
                 online_link = "https://www.rad.cvm.gov.br/ENET/frmExibirArquivoIPEExterno.aspx?NumeroProtocoloEntrega=" + seq

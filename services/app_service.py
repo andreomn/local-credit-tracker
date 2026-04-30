@@ -1472,6 +1472,21 @@ def cvm_parse_delivery_datetime(value):
 
 
 def cvm_extract_rows_from_enet_response(obj):
+    def parse_dados_string(value):
+        txt = str(value or "").strip()
+        if not txt or "$&" not in txt:
+            return []
+        out = []
+        raw_rows = txt.split("$&&*") if "$&&*" in txt else txt.split("$$")
+        for raw_row in raw_rows:
+            raw_row = raw_row.strip()
+            if not raw_row:
+                continue
+            cells = [cvm_strip_html(c) for c in raw_row.split("$&")]
+            if len(cells) >= 7:
+                out.append(cells)
+        return out
+
     if obj is None:
         return []
     if isinstance(obj, str):
@@ -1482,6 +1497,9 @@ def cvm_extract_rows_from_enet_response(obj):
             return cvm_extract_rows_from_enet_response(json.loads(txt))
         except Exception:
             pass
+        dados_rows = parse_dados_string(txt)
+        if dados_rows:
+            return dados_rows
         trs = re.findall(r"<tr[^>]*>(.*?)</tr>", txt, flags=re.I | re.S)
         out = []
         for tr in trs:
@@ -1490,6 +1508,10 @@ def cvm_extract_rows_from_enet_response(obj):
                 out.append(cells)
         return out
     if isinstance(obj, dict):
+        if "dados" in obj:
+            dados_rows = cvm_extract_rows_from_enet_response(obj["dados"])
+            if dados_rows:
+                return dados_rows
         if "d" in obj:
             return cvm_extract_rows_from_enet_response(obj["d"])
         for k in ("aaData", "data", "rows", "lista", "documentos", "lstDocumentos", "Table"):
@@ -1517,36 +1539,39 @@ def cvm_extract_rows_from_enet_response(obj):
     return []
 
 
-def cvm_enet_payloads(search_term, start_date, end_date):
+def cvm_enet_payloads(search_term, start_date, end_date, cvm_code=None):
     de = start_date.strftime("%d/%m/%Y")
     ate = end_date.strftime("%d/%m/%Y")
+    code_digits = cvm_only_digits(cvm_code or "")
+    empresa_value = ("," + code_digits) if code_digits else (search_term or "")
     base = {
         "dataDe": de,
         "dataAte": ate,
-        "empresa": search_term or "",
+        "empresa": empresa_value,
         "setorAtividade": "-1",
         "categoriaEmissor": "-1",
         "situacaoEmissor": "-1",
         "tipoParticipante": "-1",
         "dataReferencia": "",
-        "categoria": "",
-        "periodo": "0",
+        "categoria": "EST_-1,IPE_-1_-1_-1",
+        "periodo": "2",
         "horaIni": "",
         "horaFim": "",
         "palavraChave": "",
         "ultimaDtRef": "false",
         "tipoEmpresa": "0",
+        "token": "",
+        "versaoCaptcha": "",
         "iDisplayStart": 0,
-        "iDisplayLength": 1000,
+        "iDisplayLength": 2000,
         "sEcho": 1,
     }
-    p1 = dict(base)
-    p1["categoria"] = "EST_3"
-    p1["periodo"] = "1"
-    p2 = dict(base)
-    p2["dataEntregaDe"] = de
-    p2["dataEntregaAte"] = ate
-    return [base, p1, p2]
+    if code_digits:
+        # ENET aceita variações no nome do campo do código CVM dependendo da versão.
+        base["codigoCVM"] = code_digits
+        base["codigoCvm"] = code_digits
+        base["cdCvm"] = code_digits
+    return [base]
 
 
 def cvm_company_search_terms(issuer, matched_companies=None):
@@ -1567,7 +1592,7 @@ def cvm_company_search_terms(issuer, matched_companies=None):
         terms.append("")
     return terms
 
-def cvm_enet_row_to_final(row, issuer_query):
+def cvm_enet_row_to_final(row, issuer_query, matched_codes=None):
     if isinstance(row, dict):
         norm = cvm_normalize_row(row)
         company = cvm_first_present(norm, ["EMPRESA", "DENOM_CIA", "DENOM_SOCIAL", "NOME_COMPANHIA"])
@@ -1599,7 +1624,10 @@ def cvm_enet_row_to_final(row, issuer_query):
     delivered_dt = cvm_parse_delivery_datetime(delivery)
     if not company or not delivered_dt:
         return None
-    if not issuer_name_matches(issuer_query, company) and cvm_norm(issuer_query) not in cvm_norm(company):
+    row_code_digits = cvm_only_digits(cvm_code or "")
+    allowed_codes = {cvm_only_digits(x) for x in (matched_codes or []) if cvm_only_digits(x)}
+    code_match = bool(row_code_digits and row_code_digits in allowed_codes)
+    if not code_match and not issuer_name_matches(issuer_query, company) and cvm_norm(issuer_query) not in cvm_norm(company):
         return None
     return {
         "delivery_date": delivered_dt.date().isoformat(),
@@ -1625,13 +1653,16 @@ def cvm_fetch_enet_live_filings(issuer, days, matched_companies=None):
         return [], []
     end_date = date_cls.today()
     start_date = end_date - timedelta(days=max(days, 1))
-    endpoints = [
-        CVM_ENET_BASE_URL + "/ListarDocumentos",
-        CVM_ENET_BASE_URL + "/ConsultarDocumentos",
-        CVM_ENET_BASE_URL + "/PesquisarDocumentos",
-    ]
+    endpoint = CVM_ENET_BASE_URL + "/ListarDocumentos"
     errors = []
     search_terms = cvm_company_search_terms(issuer, matched_companies)
+    matched_codes = []
+    for m in matched_companies or []:
+        code_digits = cvm_only_digits(m.get("cvm_code") or "")
+        if code_digits and code_digits not in matched_codes:
+            matched_codes.append(code_digits)
+    if not matched_codes:
+        matched_codes = [None]
     session = requests.Session()
     session.headers.update({
         "User-Agent": CVM_USER_AGENT,
@@ -1644,11 +1675,12 @@ def cvm_fetch_enet_live_filings(issuer, days, matched_companies=None):
         session.get(CVM_ENET_BASE_URL, timeout=CVM_ENET_TIMEOUT)
     except Exception as exc:
         errors.append(f"ENET página inicial falhou: {exc}")
-    for endpoint in endpoints:
+    all_rows = []
+    for cvm_code in matched_codes:
         for search_term in search_terms:
-            for payload in cvm_enet_payloads(search_term, start_date, end_date):
+            for payload in cvm_enet_payloads(search_term, start_date, end_date, cvm_code=cvm_code):
                 try:
-                    resp = session.post(endpoint, data=json.dumps(payload), timeout=CVM_ENET_TIMEOUT)
+                    resp = session.post(endpoint, json=payload, timeout=CVM_ENET_TIMEOUT)
                     if resp.status_code >= 400:
                         errors.append(f"ENET {endpoint.rsplit('/', 1)[-1]} HTTP {resp.status_code}")
                         continue
@@ -1656,17 +1688,16 @@ def cvm_fetch_enet_live_filings(issuer, days, matched_companies=None):
                         obj = resp.json()
                     except Exception:
                         obj = resp.text
-                    final_rows = []
                     for raw in cvm_extract_rows_from_enet_response(obj):
-                        final = cvm_enet_row_to_final(raw, issuer)
+                        final = cvm_enet_row_to_final(raw, issuer, matched_codes=matched_codes)
                         if final:
-                            final_rows.append(final)
-                    if final_rows:
-                        print(f"ENET live retornou {len(final_rows)} linha(s) para {issuer} via {endpoint} | termo={search_term or '[lista geral]'}")
-                        return final_rows, errors
+                            all_rows.append(final)
                 except Exception as exc:
                     errors.append(f"ENET {endpoint.rsplit('/', 1)[-1]} falhou: {exc}")
-    return [], errors
+    all_rows = cvm_merge_final_rows(all_rows)
+    if all_rows:
+        print(f"ENET live retornou {len(all_rows)} linha(s) para {issuer} via ListarDocumentos")
+    return all_rows, errors
 
 
 def cvm_merge_final_rows(rows):

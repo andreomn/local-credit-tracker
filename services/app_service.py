@@ -1622,7 +1622,7 @@ def cvm_enet_row_to_final(row, issuer_query, matched_codes=None):
             href = m.group(1).replace("&amp;", "&")
             online_link = href if href.lower().startswith("http") else "https://www.rad.cvm.gov.br/ENET/" + href.lstrip("/")
         if not online_link:
-            m = re.search(r"OpenPopUpVer\('([^']+)'", raw_join, flags=re.I)
+            m = re.search(r"OpenPopUpVer\((?:'|\")([^'\"]+)(?:'|\")", raw_join, flags=re.I)
             if m:
                 href = m.group(1).replace("&amp;", "&")
                 online_link = href if href.lower().startswith("http") else "https://www.rad.cvm.gov.br/ENET/" + href.lstrip("/")
@@ -1645,6 +1645,17 @@ def cvm_enet_row_to_final(row, issuer_query, matched_codes=None):
     code_match = bool(row_code_digits and row_code_digits in allowed_codes)
     if not code_match and not issuer_name_matches(issuer_query, company) and cvm_norm(issuer_query) not in cvm_norm(company):
         return None
+    # Trace para diagnóstico: quando o ENET retorna linha sem hyperlink direto.
+    if not online_link:
+        seq_ref = ""
+        mref = re.search(r"\b(\d{6,})\b", str(ref_date or ""))
+        if mref:
+            seq_ref = mref.group(1)
+        if len(seq_ref) >= 8:
+            online_link = "https://www.rad.cvm.gov.br/ENET/frmExibirArquivoIPEExterno.aspx?NumeroProtocoloEntrega=" + seq_ref
+            print(f"[CVM][ENET] online_link por fallback de ref_date seq={seq_ref} company='{company}'")
+        else:
+            print(f"[CVM][ENET] linha sem online_link company='{company}' ref_date='{ref_date}'")
     return {
         "delivery_date": delivered_dt.date().isoformat(),
         "company": cvm_company_name_proper(company),

@@ -1669,6 +1669,10 @@ def cvm_fetch_enet_live_filings(issuer, days, matched_companies=None):
             matched_codes.append(code_digits)
     if not matched_codes:
         matched_codes = [None]
+    print(
+        f"[CVM][ENET] issuer='{issuer}' days={days} "
+        f"matched_companies={len(matched_companies or [])} matched_codes={matched_codes}"
+    )
     session = requests.Session()
     session.headers.update({
         "User-Agent": CVM_USER_AGENT,
@@ -1682,11 +1686,23 @@ def cvm_fetch_enet_live_filings(issuer, days, matched_companies=None):
     except Exception as exc:
         errors.append(f"ENET página inicial falhou: {exc}")
     all_rows = []
+    request_count = 0
     for cvm_code in matched_codes:
         for search_term in search_terms:
             for payload in cvm_enet_payloads(search_term, start_date, end_date, cvm_code=cvm_code):
+                request_count += 1
+                print(
+                    "[CVM][ENET] POST ListarDocumentos "
+                    f"req={request_count} cvm_code={cvm_code} empresa='{payload.get('empresa')}' "
+                    f"periodo={payload.get('periodo')} categoria='{payload.get('categoria')}' "
+                    f"dataDe={payload.get('dataDe')} dataAte={payload.get('dataAte')}"
+                )
                 try:
                     resp = session.post(endpoint, json=payload, timeout=CVM_ENET_TIMEOUT)
+                    print(
+                        f"[CVM][ENET] resposta req={request_count} status={resp.status_code} "
+                        f"content_type='{resp.headers.get('content-type', '')}' body_len={len(resp.text or '')}"
+                    )
                     if resp.status_code >= 400:
                         errors.append(f"ENET {endpoint.rsplit('/', 1)[-1]} HTTP {resp.status_code}")
                         continue
@@ -1694,15 +1710,24 @@ def cvm_fetch_enet_live_filings(issuer, days, matched_companies=None):
                         obj = resp.json()
                     except Exception:
                         obj = resp.text
-                    for raw in cvm_extract_rows_from_enet_response(obj):
+                    extracted = cvm_extract_rows_from_enet_response(obj)
+                    accepted = 0
+                    for raw in extracted:
                         final = cvm_enet_row_to_final(raw, issuer, matched_codes=matched_codes)
                         if final:
                             all_rows.append(final)
+                            accepted += 1
+                    print(
+                        f"[CVM][ENET] parse req={request_count} extraidas={len(extracted)} aceitas={accepted}"
+                    )
                 except Exception as exc:
                     errors.append(f"ENET {endpoint.rsplit('/', 1)[-1]} falhou: {exc}")
+                    print(f"[CVM][ENET] erro req={request_count}: {exc}")
     all_rows = cvm_merge_final_rows(all_rows)
-    if all_rows:
-        print(f"ENET live retornou {len(all_rows)} linha(s) para {issuer} via ListarDocumentos")
+    print(
+        f"[CVM][ENET] final issuer='{issuer}' requests={request_count} "
+        f"rows_unicas={len(all_rows)} erros={len(errors)}"
+    )
     return all_rows, errors
 
 
@@ -1760,16 +1785,24 @@ def cvm_filings_route():
         loaded_at = None
         source_rows = _cvm_cache.get("rows") or []
         matched_companies = cvm_find_matching_companies(source_rows, issuer) if source_rows else []
+        print(
+            f"[CVM][route] issuer='{issuer}' cache_rows={len(source_rows)} "
+            f"matched_companies_cache={len(matched_companies)}"
+        )
         valid_codes = [
             cvm_only_digits(m.get("cvm_code") or "")
             for m in matched_companies
             if len(cvm_only_digits(m.get("cvm_code") or "")) >= 5
         ]
         if not valid_codes:
+            print(f"[CVM][route] issuer='{issuer}' sem codigo CVM valido no cache; recarregando base IPE")
             source_rows, load_errors, years, loaded_at = cvm_load_source_rows(days=days, force=False)
             if load_errors:
                 errors.extend(load_errors[:3])
             matched_companies = cvm_find_matching_companies(source_rows, issuer)
+            print(
+                f"[CVM][route] issuer='{issuer}' matched_companies_reload={len(matched_companies)}"
+            )
 
         live_rows, live_errors = cvm_fetch_enet_live_filings(issuer, days, matched_companies)
         if live_errors:

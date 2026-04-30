@@ -1,4 +1,4 @@
-from services._app_legacy import (
+from ._app_legacy import (
     load_trades_history,
     extract_trades_for_codes,
     load_trades_for_code,

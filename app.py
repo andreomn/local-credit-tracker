@@ -1,6 +1,6 @@
 from flask import Flask
 
-from services import _app_legacy as legacy
+from services import app_service as legacy
 
 app = Flask(__name__)
 
@@ -21,6 +21,7 @@ def issuers_route():
 
 
 @app.route("/issuer_data")
+@app.route("/issuer-data")
 def issuer_data_route():
     return legacy.issuer_data_route()
 
@@ -34,6 +35,18 @@ def tables():
 def all_data_route():
     return legacy.all_data_route()
 
+
+
+
+# Backward-compatible kebab-case aliases used by existing clients/load balancers.
+@app.route("/all-data")
+def all_data_route_alias():
+    return legacy.all_data_route()
+
+
+@app.route("/warm-trades-cache")
+def warm_trades_cache_route_alias():
+    return legacy.warm_trades_cache_route()
 
 @app.route("/trades")
 def trades_route():

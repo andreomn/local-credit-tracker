@@ -6,6 +6,7 @@ import io
 import threading
 import zipfile
 import re
+import html
 import unicodedata
 import difflib
 from datetime import date as date_cls, timedelta, datetime
@@ -1477,12 +1478,14 @@ def cvm_extract_rows_from_enet_response(obj):
         if not txt or "$&" not in txt:
             return []
         out = []
-        raw_rows = txt.split("$&&*") if "$&&*" in txt else txt.split("$$")
+        # ENET já retornou separadores como "$&&*", "$&&&*" e variações.
+        raw_rows = re.split(r"\$&{2,}\*", txt) if re.search(r"\$&{2,}\*", txt) else txt.split("$$")
         for raw_row in raw_rows:
             raw_row = raw_row.strip()
             if not raw_row:
                 continue
-            cells = [cvm_strip_html(c) for c in raw_row.split("$&")]
+            # Importante: manter HTML bruto (ex.: onclick=OpenPopUpVer) para extrair o NumeroProtocoloEntrega.
+            cells = [html.unescape(str(c or "")).strip() for c in raw_row.split("$&")]
             if len(cells) >= 7:
                 out.append(cells)
         return out

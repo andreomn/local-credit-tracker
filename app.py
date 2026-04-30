@@ -1,6 +1,6 @@
 from flask import Flask
 
-from services import _app_legacy as legacy
+from services import app_service as legacy
 
 app = Flask(__name__)
 

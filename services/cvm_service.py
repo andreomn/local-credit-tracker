@@ -1,4 +1,4 @@
-from ._app_legacy import (
+from .app_service import (
     cvm_load_source_rows,
     cvm_find_matching_companies,
     cvm_merge_final_rows,

@@ -59,11 +59,13 @@ def warm_trades_cache_route():
 
 
 @app.route("/cvm/company-list")
+@app.route("/cvm-company-list")
 def cvm_company_list_route():
     return legacy.cvm_company_list_route()
 
 
 @app.route("/cvm/filings")
+@app.route("/cvm-filings")
 def cvm_filings_route():
     return legacy.cvm_filings_route()
 

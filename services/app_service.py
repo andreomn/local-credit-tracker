@@ -1543,6 +1543,8 @@ def cvm_enet_payloads(search_term, start_date, end_date, cvm_code=None):
     de = start_date.strftime("%d/%m/%Y")
     ate = end_date.strftime("%d/%m/%Y")
     code_digits = cvm_only_digits(cvm_code or "")
+    if len(code_digits) == 5:
+        code_digits = "0" + code_digits
     empresa_value = ("," + code_digits) if code_digits else (search_term or "")
     base = {
         "dataDe": de,
@@ -1584,7 +1586,9 @@ def cvm_company_search_terms(issuer, matched_companies=None):
     for m in matched_companies or []:
         add(m.get("company"))
         code_digits = cvm_only_digits(m.get("cvm_code") or "")
-        if code_digits:
+        if len(code_digits) == 5:
+            code_digits = "0" + code_digits
+        if len(code_digits) >= 5:
             add(code_digits)
             if len(code_digits) >= 2:
                 add(code_digits[:-1].zfill(5) + "-" + code_digits[-1])
@@ -1659,7 +1663,9 @@ def cvm_fetch_enet_live_filings(issuer, days, matched_companies=None):
     matched_codes = []
     for m in matched_companies or []:
         code_digits = cvm_only_digits(m.get("cvm_code") or "")
-        if code_digits and code_digits not in matched_codes:
+        if len(code_digits) == 5:
+            code_digits = "0" + code_digits
+        if len(code_digits) >= 5 and code_digits not in matched_codes:
             matched_codes.append(code_digits)
     if not matched_codes:
         matched_codes = [None]
@@ -1754,6 +1760,16 @@ def cvm_filings_route():
         loaded_at = None
         source_rows = _cvm_cache.get("rows") or []
         matched_companies = cvm_find_matching_companies(source_rows, issuer) if source_rows else []
+        valid_codes = [
+            cvm_only_digits(m.get("cvm_code") or "")
+            for m in matched_companies
+            if len(cvm_only_digits(m.get("cvm_code") or "")) >= 5
+        ]
+        if not valid_codes:
+            source_rows, load_errors, years, loaded_at = cvm_load_source_rows(days=days, force=False)
+            if load_errors:
+                errors.extend(load_errors[:3])
+            matched_companies = cvm_find_matching_companies(source_rows, issuer)
 
         live_rows, live_errors = cvm_fetch_enet_live_filings(issuer, days, matched_companies)
         if live_errors:

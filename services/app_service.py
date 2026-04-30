@@ -1728,7 +1728,7 @@ def cvm_filings_route():
     days = int(request.args.get("days", str(CVM_LAST_DAYS)))
     force = request.args.get("force", "0").lower() in ("1", "true", "yes")
 
-    # FIX: Refresh CVM limpa explicitamente o cache antes de baixar novamente.
+    # Refresh CVM limpa explicitamente o cache em memória da listagem de companhias.
     if force:
         _cvm_cache.update({
             "loaded_at": 0,
@@ -1749,28 +1749,16 @@ def cvm_filings_route():
         })
 
     try:
-        source_rows, errors, years, loaded_at = cvm_load_source_rows(days=days, force=force)
-        matched_companies = cvm_find_matching_companies(source_rows, issuer)
-
-        start_date = date_cls.today() - timedelta(days=days)
-        filtered = []
-
-        for row in source_rows:
-            delivered = cvm_delivery_date(row)
-
-            if not delivered or delivered < start_date:
-                continue
-
-            if not cvm_row_matches_company(row, matched_companies):
-                continue
-
-            filtered.append(cvm_transform_row(row))
+        errors = []
+        years = []
+        loaded_at = None
+        source_rows = _cvm_cache.get("rows") or []
+        matched_companies = cvm_find_matching_companies(source_rows, issuer) if source_rows else []
 
         live_rows, live_errors = cvm_fetch_enet_live_filings(issuer, days, matched_companies)
         if live_errors:
             errors.extend(live_errors[:5])
-
-        filtered = cvm_merge_final_rows(filtered + live_rows)
+        filtered = cvm_merge_final_rows(live_rows)
 
         return jsonify({
             "rows": filtered,

@@ -1625,6 +1625,13 @@ def cvm_enet_row_to_final(row, issuer_query, matched_codes=None):
             seq = cvm_extract_sequence_from_text(raw_join)
             if seq:
                 online_link = "https://www.rad.cvm.gov.br/ENET/frmExibirArquivoIPEExterno.aspx?NumeroProtocoloEntrega=" + seq
+        # Algumas respostas do ENET vêm com DATA_ENTREGA vazia e apenas DT_REFER.
+        if not cvm_parse_delivery_datetime(delivery):
+            delivery = ref_date or delivery
+        if not cvm_parse_delivery_datetime(delivery):
+            mdt = re.search(r"\d{2}/\d{2}/\d{4}(?:\s+\d{2}:\d{2}(?::\d{2})?)?", raw_join)
+            if mdt:
+                delivery = mdt.group(0)
     delivered_dt = cvm_parse_delivery_datetime(delivery)
     if not company or not delivered_dt:
         return None
@@ -1661,7 +1668,14 @@ def cvm_enet_rejection_reason(row, issuer_query, matched_codes=None):
             cvm_code = cvm_first_present(norm, ["CD_CVM", "CODIGO_CVM", "COD_CVM", "CODIGO"])
         else:
             cells = [cvm_strip_html(x) for x in row] + [""] * 12
-            cvm_code, company, _, _, _, _, delivery, *_ = cells[:12]
+            cvm_code, company, _, _, _, ref_date, delivery, *_ = cells[:12]
+            if not cvm_parse_delivery_datetime(delivery):
+                delivery = ref_date or delivery
+            if not cvm_parse_delivery_datetime(delivery):
+                raw_join = " ".join(str(x) for x in row)
+                mdt = re.search(r"\d{2}/\d{2}/\d{4}(?:\s+\d{2}:\d{2}(?::\d{2})?)?", raw_join)
+                if mdt:
+                    delivery = mdt.group(0)
         if not company:
             return "sem_company"
         if not cvm_parse_delivery_datetime(delivery):

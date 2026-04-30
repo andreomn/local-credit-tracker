@@ -20,4 +20,4 @@ gcloud run deploy local-credit-tracker \
   --region southamerica-east1 \
   --allow-unauthenticated
 
-test deploy!!
+test deploy!!!!!

@@ -1652,6 +1652,32 @@ def cvm_enet_row_to_final(row, issuer_query, matched_codes=None):
     }
 
 
+def cvm_enet_rejection_reason(row, issuer_query, matched_codes=None):
+    try:
+        if isinstance(row, dict):
+            norm = cvm_normalize_row(row)
+            company = cvm_first_present(norm, ["EMPRESA", "DENOM_CIA", "DENOM_SOCIAL", "NOME_COMPANHIA"])
+            delivery = cvm_first_present(norm, ["DATA_ENTREGA", "DT_ENTREGA", "DATA_RECEB", "DT_RECEB", "DATA_RECEBIMENTO", "DT_RECEBIMENTO"])
+            cvm_code = cvm_first_present(norm, ["CD_CVM", "CODIGO_CVM", "COD_CVM", "CODIGO"])
+        else:
+            cells = [cvm_strip_html(x) for x in row] + [""] * 12
+            cvm_code, company, _, _, _, _, delivery, *_ = cells[:12]
+        if not company:
+            return "sem_company"
+        if not cvm_parse_delivery_datetime(delivery):
+            return "sem_data_entrega"
+        row_code_digits = cvm_only_digits(cvm_code or "")
+        allowed_codes = {cvm_only_digits(x) for x in (matched_codes or []) if cvm_only_digits(x)}
+        code_match = bool(row_code_digits and row_code_digits in allowed_codes)
+        if code_match:
+            return "ok_code"
+        if issuer_name_matches(issuer_query, company) or cvm_norm(issuer_query) in cvm_norm(company):
+            return "ok_name"
+        return "filtro_nome_codigo"
+    except Exception:
+        return "erro_rejeicao"
+
+
 def cvm_fetch_enet_live_filings(issuer, days, matched_companies=None):
     if not CVM_ENET_LIVE_FALLBACK:
         return [], []
@@ -1712,13 +1738,18 @@ def cvm_fetch_enet_live_filings(issuer, days, matched_companies=None):
                         obj = resp.text
                     extracted = cvm_extract_rows_from_enet_response(obj)
                     accepted = 0
+                    reject_reasons = {}
                     for raw in extracted:
                         final = cvm_enet_row_to_final(raw, issuer, matched_codes=matched_codes)
                         if final:
                             all_rows.append(final)
                             accepted += 1
+                        else:
+                            reason = cvm_enet_rejection_reason(raw, issuer, matched_codes=matched_codes)
+                            reject_reasons[reason] = reject_reasons.get(reason, 0) + 1
                     print(
-                        f"[CVM][ENET] parse req={request_count} extraidas={len(extracted)} aceitas={accepted}"
+                        f"[CVM][ENET] parse req={request_count} extraidas={len(extracted)} "
+                        f"aceitas={accepted} rejeicoes={reject_reasons}"
                     )
                 except Exception as exc:
                     errors.append(f"ENET {endpoint.rsplit('/', 1)[-1]} falhou: {exc}")

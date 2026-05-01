@@ -1797,7 +1797,7 @@ def cvm_merge_final_rows(rows):
 @app.route("/cvm-company-list")
 def cvm_company_list_route():
     try:
-        source_rows, errors, years, loaded_at = cvm_load_source_rows(days=CVM_LAST_DAYS, force=False)
+        source_rows, errors, years, loaded_at = cvm_load_source_rows(days=3650, force=False)
         companies = sorted({cvm_company_name(row) for row in source_rows if cvm_company_name(row)})
         return jsonify(companies)
     except Exception as e:

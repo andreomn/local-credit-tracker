@@ -1558,7 +1558,7 @@ def cvm_enet_payloads(search_term, start_date, end_date, cvm_code=None):
         "situacaoEmissor": "-1",
         "tipoParticipante": "-1",
         "dataReferencia": "",
-        "categoria": "EST_-1,IPE_-1_-1_-1",
+        "categoria": "-1",
         "periodo": "2",
         "horaIni": "",
         "horaFim": "",
@@ -1643,11 +1643,6 @@ def cvm_enet_row_to_final(row, issuer_query, matched_codes=None):
     delivered_dt = cvm_parse_delivery_datetime(delivery)
     if not company or not delivered_dt:
         return None
-    row_code_digits = cvm_only_digits(cvm_code or "")
-    allowed_codes = {cvm_only_digits(x) for x in (matched_codes or []) if cvm_only_digits(x)}
-    code_match = bool(row_code_digits and row_code_digits in allowed_codes)
-    if not code_match and not issuer_name_matches(issuer_query, company) and cvm_norm(issuer_query) not in cvm_norm(company):
-        return None
     # Trace para diagnóstico: exige NumeroProtocoloEntrega vindo da resposta do ENET.
     if not online_link:
         print(f"[CVM][ENET] linha sem NumeroProtocoloEntrega/link company='{company}' ref_date='{ref_date}'")
@@ -1707,7 +1702,7 @@ def cvm_fetch_enet_live_filings(issuer, days, matched_companies=None):
     if not CVM_ENET_LIVE_FALLBACK:
         return [], []
     end_date = date_cls.today()
-    start_date = end_date - timedelta(days=max(days, 1))
+    start_date = end_date - timedelta(days=30)
     endpoint = CVM_ENET_BASE_URL + "/ListarDocumentos"
     errors = []
     search_terms = cvm_company_search_terms(issuer, matched_companies)
@@ -1788,12 +1783,7 @@ def cvm_fetch_enet_live_filings(issuer, days, matched_companies=None):
 
 
 def cvm_merge_final_rows(rows):
-    dedup = {}
-    for r in rows:
-        key = (r.get("delivery_date") or "", cvm_norm(r.get("company") or ""), cvm_norm(r.get("category") or ""), cvm_norm(r.get("type") or ""), cvm_norm(r.get("species") or ""), cvm_norm(r.get("subject") or ""), r.get("reference_date") or "")
-        if key not in dedup or (not dedup[key].get("online_link") and r.get("online_link")):
-            dedup[key] = r
-    out = list(dedup.values())
+    out = list(rows or [])
     out.sort(key=lambda r: (r.get("delivery_date") or "", r.get("company") or ""), reverse=True)
     return out
 

@@ -22,6 +22,8 @@ B3_INFO_FILENAME = os.environ.get("B3_INFO_FILENAME", "Debentures.csv")
 
 B3_TRADES_PREFIX = os.environ.get("B3_TRADES_PREFIX", "b3_trades/")
 B3_TRADES_FILENAME = os.environ.get("B3_TRADES_FILENAME", "historico-trades.json")
+CVM_INFO_PREFIX = os.environ.get("CVM_INFO_PREFIX", "cvm_infos/")
+CVM_COMPANY_LIST_FILENAME = os.environ.get("CVM_COMPANY_LIST_FILENAME", "cvm_company_list.json")
 
 # CVM Filings config. This is fully isolated from ANBIMA/B3 logic.
 CVM_LAST_DAYS = int(os.environ.get("CVM_LAST_DAYS", "30"))
@@ -62,6 +64,8 @@ _cvm_cache = {
     "source_years": [],
 }
 _cvm_cache_lock = threading.Lock()
+_cvm_company_list_cache = []
+_cvm_company_list_cache_lock = threading.Lock()
 
 CACHE_SECONDS = 3600
 TABLE_LIMIT = 30
@@ -81,6 +85,63 @@ def get_volume_blob_name() -> str:
 def get_trades_blob_name() -> str:
     prefix = B3_TRADES_PREFIX.rstrip("/") + "/"
     return prefix + B3_TRADES_FILENAME
+
+
+def get_cvm_company_list_blob_name() -> str:
+    prefix = CVM_INFO_PREFIX.rstrip("/") + "/"
+    return prefix + CVM_COMPANY_LIST_FILENAME
+
+
+def load_cvm_company_list_from_gcs():
+    client = storage.Client()
+    bucket = client.bucket(GCS_BUCKET_NAME)
+    blob_name = get_cvm_company_list_blob_name()
+    blob = bucket.blob(blob_name)
+    if not blob.exists():
+        return None
+    text = blob.download_as_text(encoding="utf-8")
+    data = json.loads(text)
+    if not isinstance(data, list):
+        return None
+    companies = [str(x).strip() for x in data if str(x).strip()]
+    return sorted(set(companies))
+
+
+def save_cvm_company_list_to_gcs(companies):
+    client = storage.Client()
+    bucket = client.bucket(GCS_BUCKET_NAME)
+    blob_name = get_cvm_company_list_blob_name()
+    blob = bucket.blob(blob_name)
+    payload = json.dumps(companies, ensure_ascii=False)
+    blob.upload_from_string(payload, content_type="application/json; charset=utf-8")
+
+
+def build_cvm_company_list_from_source():
+    source_rows, _, _, _ = cvm_load_source_rows(days=3650, force=False)
+    return sorted({cvm_company_name(row) for row in source_rows if cvm_company_name(row)})
+
+
+def ensure_cvm_company_list():
+    global _cvm_company_list_cache
+    if _cvm_company_list_cache:
+        return _cvm_company_list_cache
+    with _cvm_company_list_cache_lock:
+        if _cvm_company_list_cache:
+            return _cvm_company_list_cache
+        try:
+            gcs_list = load_cvm_company_list_from_gcs()
+            if gcs_list:
+                _cvm_company_list_cache = gcs_list
+                return _cvm_company_list_cache
+        except Exception as exc:
+            print(f"Erro ao carregar lista de companhias CVM do GCS: {exc}")
+        companies = build_cvm_company_list_from_source()
+        _cvm_company_list_cache = companies
+        try:
+            save_cvm_company_list_to_gcs(companies)
+        except Exception as exc:
+            print(f"Erro ao salvar lista de companhias CVM no GCS: {exc}")
+        return _cvm_company_list_cache
 
 
 def is_cache_valid(last_load_time):
@@ -736,6 +797,7 @@ def build_latest_rows(limit=None):
 
 @app.route("/")
 def index():
+    ensure_cvm_company_list()
     return render_template("index.html")
 
 
@@ -1797,8 +1859,7 @@ def cvm_merge_final_rows(rows):
 @app.route("/cvm-company-list")
 def cvm_company_list_route():
     try:
-        source_rows, errors, years, loaded_at = cvm_load_source_rows(days=3650, force=False)
-        companies = sorted({cvm_company_name(row) for row in source_rows if cvm_company_name(row)})
+        companies = ensure_cvm_company_list()
         return jsonify(companies)
     except Exception as e:
         print(f"Erro ao carregar lista de companhias CVM: {e}")

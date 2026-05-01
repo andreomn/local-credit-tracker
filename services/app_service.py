@@ -1615,7 +1615,8 @@ def cvm_enet_row_to_final(row, issuer_query, matched_codes=None):
         cvm_code = cvm_first_present(norm, ["CD_CVM", "CODIGO_CVM", "COD_CVM", "CODIGO"])
         online_link = cvm_online_link(norm)
     else:
-        cells = [cvm_strip_html(x) for x in row] + [""] * 12
+        raw_cells = [str(x or "") for x in row] + [""] * 12
+        cells = [cvm_strip_html(x) for x in raw_cells] + [""] * 12
         cvm_code, company, category, typ, species, ref_date, delivery, status, version, modality, actions, subject = cells[:12]
         cnpj = ""
         raw_join = " ".join(str(x) for x in row)
@@ -1634,6 +1635,11 @@ def cvm_enet_row_to_final(row, issuer_query, matched_codes=None):
             if seq:
                 online_link = "https://www.rad.cvm.gov.br/ENET/frmExibirArquivoIPEExterno.aspx?NumeroProtocoloEntrega=" + seq
         # Algumas respostas do ENET vêm com DATA_ENTREGA vazia e apenas DT_REFER.
+        raw_delivery = raw_cells[6] if len(raw_cells) > 6 else ""
+        if not cvm_parse_delivery_datetime(delivery):
+            m_display_dt = re.search(r"\d{2}/\d{2}/\d{4}(?:\s+\d{2}:\d{2}(?::\d{2})?)?", cvm_strip_html(raw_delivery))
+            if m_display_dt:
+                delivery = m_display_dt.group(0)
         if not cvm_parse_delivery_datetime(delivery):
             delivery = ref_date or delivery
         if not cvm_parse_delivery_datetime(delivery):
@@ -1642,11 +1648,6 @@ def cvm_enet_row_to_final(row, issuer_query, matched_codes=None):
                 delivery = mdt.group(0)
     delivered_dt = cvm_parse_delivery_datetime(delivery)
     if not company or not delivered_dt:
-        return None
-    row_code_digits = cvm_only_digits(cvm_code or "")
-    allowed_codes = {cvm_only_digits(x) for x in (matched_codes or []) if cvm_only_digits(x)}
-    code_match = bool(row_code_digits and row_code_digits in allowed_codes)
-    if not code_match and not issuer_name_matches(issuer_query, company) and cvm_norm(issuer_query) not in cvm_norm(company):
         return None
     # Trace para diagnóstico: exige NumeroProtocoloEntrega vindo da resposta do ENET.
     if not online_link:
@@ -1707,7 +1708,7 @@ def cvm_fetch_enet_live_filings(issuer, days, matched_companies=None):
     if not CVM_ENET_LIVE_FALLBACK:
         return [], []
     end_date = date_cls.today()
-    start_date = end_date - timedelta(days=max(days, 1))
+    start_date = end_date - timedelta(days=30)
     endpoint = CVM_ENET_BASE_URL + "/ListarDocumentos"
     errors = []
     search_terms = cvm_company_search_terms(issuer, matched_companies)
@@ -1788,12 +1789,7 @@ def cvm_fetch_enet_live_filings(issuer, days, matched_companies=None):
 
 
 def cvm_merge_final_rows(rows):
-    dedup = {}
-    for r in rows:
-        key = (r.get("delivery_date") or "", cvm_norm(r.get("company") or ""), cvm_norm(r.get("category") or ""), cvm_norm(r.get("type") or ""), cvm_norm(r.get("species") or ""), cvm_norm(r.get("subject") or ""), r.get("reference_date") or "")
-        if key not in dedup or (not dedup[key].get("online_link") and r.get("online_link")):
-            dedup[key] = r
-    out = list(dedup.values())
+    out = list(rows or [])
     out.sort(key=lambda r: (r.get("delivery_date") or "", r.get("company") or ""), reverse=True)
     return out
 
@@ -1801,7 +1797,7 @@ def cvm_merge_final_rows(rows):
 @app.route("/cvm-company-list")
 def cvm_company_list_route():
     try:
-        source_rows, errors, years, loaded_at = cvm_load_source_rows(days=CVM_LAST_DAYS, force=False)
+        source_rows, errors, years, loaded_at = cvm_load_source_rows(days=3650, force=False)
         companies = sorted({cvm_company_name(row) for row in source_rows if cvm_company_name(row)})
         return jsonify(companies)
     except Exception as e:

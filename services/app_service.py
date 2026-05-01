@@ -1558,7 +1558,7 @@ def cvm_enet_payloads(search_term, start_date, end_date, cvm_code=None):
         "situacaoEmissor": "-1",
         "tipoParticipante": "-1",
         "dataReferencia": "",
-        "categoria": "EST_-1,IPE_-1_-1_-1",
+        "categoria": "-1",
         "periodo": "2",
         "horaIni": "",
         "horaFim": "",

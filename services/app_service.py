@@ -1702,7 +1702,7 @@ def cvm_fetch_enet_live_filings(issuer, days, matched_companies=None):
     if not CVM_ENET_LIVE_FALLBACK:
         return [], []
     end_date = date_cls.today()
-    start_date = end_date - timedelta(days=max(days, 1))
+    start_date = end_date - timedelta(days=30)
     endpoint = CVM_ENET_BASE_URL + "/ListarDocumentos"
     errors = []
     search_terms = cvm_company_search_terms(issuer, matched_companies)

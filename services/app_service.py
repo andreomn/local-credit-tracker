@@ -269,7 +269,10 @@ def parse_iso_date(value):
     s = s.split("T")[0].split(" ")[0]
     s = s.replace("/", "-")
 
-    for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d-%m-%y", "%m-%d-%Y", "%m-%d-%y"):
+    # B3 trades CSV is stored as MM-DD-YYYY in this project.
+    # Keep month-first formats before day-first to avoid ambiguities such as
+    # 05-04-2026 being parsed as 2026-04-05 instead of 2026-05-04.
+    for fmt in ("%Y-%m-%d", "%m-%d-%Y", "%m-%d-%y", "%d-%m-%Y", "%d-%m-%y"):
         try:
             dt = datetime.strptime(s, fmt)
             return dt.date().isoformat()

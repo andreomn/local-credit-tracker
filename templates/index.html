@@ -468,26 +468,31 @@
 
     #all-data-table th:nth-child(3),
     #all-data-table td:nth-child(3) {
-      width: 9%;
+      width: 10%;
     }
 
     #all-data-table th:nth-child(4),
     #all-data-table td:nth-child(4) {
-      width: 12%;
+      width: 9%;
     }
 
     #all-data-table th:nth-child(5),
     #all-data-table td:nth-child(5) {
-      width: 9%;
+      width: 12%;
     }
 
     #all-data-table th:nth-child(6),
     #all-data-table td:nth-child(6) {
-      width: 10%;
+      width: 9%;
     }
 
     #all-data-table th:nth-child(7),
     #all-data-table td:nth-child(7) {
+      width: 10%;
+    }
+
+    #all-data-table th:nth-child(8),
+    #all-data-table td:nth-child(8) {
       width: 10%;
     }
 
@@ -711,6 +716,7 @@
             <tr>
               <th class="sortable" onclick="sortAllData('code')">Code</th>
               <th class="sortable" onclick="sortAllData('issuer')">Issuer</th>
+              <th class="sortable" onclick="sortAllData('type')">Type</th>
               <th class="sortable" onclick="sortAllData('maturity_date')">Maturity</th>
               <th class="sortable" onclick="sortAllData('volume_emissao_num')">Issue Size (R$ MM)</th>
               <th class="sortable" onclick="sortAllData('brl_cents')">BRL cents</th>
@@ -868,7 +874,8 @@
           break;
         }
       }
-      return s.trim();
+      const normalized = s.trim().replace(/\s+/g, " " ).toLowerCase();
+      return normalized.replace(/\b([\p{L}\p{N}])/gu, c => c.toUpperCase());
     }
 
     function formatMaturityMMMYY(v) {
@@ -1622,6 +1629,7 @@
         tr.innerHTML = `
           <td class='code'>${tickerLink(entry.code, entry.type)}</td>
           <td class='issuer'>${cleanIssuer(entry.issuer || "")}</td>
+          <td>${formatInstrumentType(entry.type)}</td>
           <td class='maturity'>${formatMaturityMMMYY(entry.maturity_date || "")}</td>
           <td>${formatVolumeEmissao(entry.volume_emissao)}</td>
           <td>${entry.brl_cents != null ? formatNumber(entry.brl_cents, 1) : ""}</td>
@@ -1630,6 +1638,11 @@
         `;
         body.appendChild(tr);
       });
+    }
+
+    function formatInstrumentType(assetType) {
+      if (!assetType) return "";
+      return String(assetType).toLowerCase() === "cri/cra" ? "CRI/CRA" : "Debenture";
     }
 
     function downloadAllDataCsv() {
@@ -1643,6 +1656,7 @@
       const headers = [
         "code",
         "issuer",
+        "type",
         "index",
         "maturity_date",
         "volume_emissao",

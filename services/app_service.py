@@ -168,7 +168,7 @@ def load_history(asset_class="debenture"):
             print("Usando histórico ANBIMA CRI/CRA do cache em memória...")
             return _history_cache_cricra
         cache_ref = "_history_cache_cricra"
-        blob_name = get_history_blob_name_cricra()
+        blob_name = get_history_blob_name()
     else:
         if _history_cache is not None and is_cache_valid(_last_load_time):
             print("Usando histórico ANBIMA do cache em memória...")
@@ -187,8 +187,15 @@ def load_history(asset_class="debenture"):
     print(f"Download histórico ANBIMA concluído em {time.time() - t0:.1f}s | tamanho={len(text)/1024/1024:.1f} MB")
 
     t1 = time.time()
-    data = json.loads(text)
+    full_data = json.loads(text)
     print(f"JSON histórico ANBIMA parseado em {time.time() - t1:.1f}s")
+
+    expected_type = "cri/cra" if asset_class == "cricra" else "debenture"
+    data = {
+        code: [p for p in series if (p.get("type") or "").strip().lower() == expected_type]
+        for code, series in full_data.items()
+    }
+    data = {code: series for code, series in data.items() if series}
 
     if cache_ref == "_history_cache_cricra":
         _history_cache_cricra = data
@@ -804,6 +811,7 @@ def build_latest_rows(limit=None, asset_class="debenture"):
                 "index": idx,
                 "maturity_date": curr.get("maturity_date"),
                 "issuer": clean_issuer_py(curr.get("issuer")),
+                "type": curr.get("type"),
                 "taxa_indicativa": taxa,
                 "brl_cents": brl,
                 "wow_spread_bps": wow_spread_bps,

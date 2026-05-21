@@ -913,10 +913,13 @@
       });
     }
 
-    function tickerLink(code) {
+    function tickerLink(code, assetType) {
       if (!code) return "";
       const safeCode = String(code).trim().toUpperCase();
-      const url = "https://data.anbima.com.br/debentures/" + safeCode + "/caracteristicas";
+      const baseUrl = String(assetType || "").toLowerCase() === "cri/cra"
+        ? "https://data.anbima.com.br/certificado-de-recebiveis/"
+        : "https://data.anbima.com.br/debentures/";
+      const url = baseUrl + safeCode + "/caracteristicas";
       return `<a class="ticker-link" href="${url}" target="_blank" rel="noopener noreferrer">${safeCode}</a>`;
     }
 
@@ -1346,7 +1349,7 @@
 
       function makeRowSpread(entry) {
         const tr = document.createElement("tr");
-        const codeTd = `<td class='code'>${tickerLink(entry.code)}</td>`;
+        const codeTd = `<td class='code'>${tickerLink(entry.code, entry.type)}</td>`;
         const issuerTd = `<td class='issuer'>${cleanIssuer(entry.issuer || "")}</td>`;
         const maturityTd = `<td class='maturity'>${formatMaturityMMMYY(entry.maturity_date || "")}</td>`;
         const volumeTd = `<td>${formatVolumeEmissao(entry.volume_emissao)}</td>`;
@@ -1365,7 +1368,7 @@
 
       function makeRowBrl(entry) {
         const tr = document.createElement("tr");
-        const codeTd = `<td class='code'>${tickerLink(entry.code)}</td>`;
+        const codeTd = `<td class='code'>${tickerLink(entry.code, entry.type)}</td>`;
         const issuerTd = `<td class='issuer'>${cleanIssuer(entry.issuer || "")}</td>`;
         const maturityTd = `<td class='maturity'>${formatMaturityMMMYY(entry.maturity_date || "")}</td>`;
         const volumeTd = `<td>${formatVolumeEmissao(entry.volume_emissao)}</td>`;
@@ -1617,7 +1620,7 @@
       rows.forEach(entry => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td class='code'>${tickerLink(entry.code)}</td>
+          <td class='code'>${tickerLink(entry.code, entry.type)}</td>
           <td class='issuer'>${cleanIssuer(entry.issuer || "")}</td>
           <td class='maturity'>${formatMaturityMMMYY(entry.maturity_date || "")}</td>
           <td>${formatVolumeEmissao(entry.volume_emissao)}</td>

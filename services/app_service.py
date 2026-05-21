@@ -328,7 +328,8 @@ def clean_issuer_py(x):
         else:
             break
 
-    return " ".join(s.strip().split())
+    s = " ".join(s.strip().split())
+    return s.title()
 
 
 # ============================================================
@@ -939,12 +940,15 @@ def tables():
 
 @app.route("/all-data")
 def all_data_route():
-    asset_class = request.args.get("asset_class", "debenture").strip().lower()
     index = request.args.get("index", "CDI").strip().upper()
     if index not in {"CDI", "IPCA"}:
         index = "CDI"
 
-    rows, latest_date_str = build_latest_rows(asset_class=asset_class)
+    rows_deb, latest_deb = build_latest_rows(asset_class="debenture")
+    rows_cricra, latest_cricra = build_latest_rows(asset_class="cricra")
+
+    rows = rows_deb + rows_cricra
+    latest_date_str = max([d for d in [latest_deb, latest_cricra] if d], default=None)
 
     filtered = [
         r for r in rows

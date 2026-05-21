@@ -544,6 +544,7 @@
 
   <div class="top-menu">
     <button id="menu-tracker" class="menu-btn active" onclick="showSection('tracker')">Debenture Tracker</button>
+    <button id="menu-cricra" class="menu-btn" onclick="showSection('cricra')">CRI/CRA</button>
     <button id="menu-trades" class="menu-btn" onclick="showSection('trades')">B3 Trades</button>
     <button id="menu-all-data" class="menu-btn" onclick="showSection('all-data')">All Data</button>
     <button id="menu-cvm-filings" class="menu-btn" onclick="showSection('cvm-filings')">CVM Filings</button>
@@ -766,6 +767,7 @@
 <script>
     let chart = null;
     let currentChartRows = [];
+    let currentAssetClass = "debenture";
 
     let allDataIndex = "CDI";
     let allDataRows = [];
@@ -774,10 +776,20 @@
     let allDataSortDir = "desc";
 
     function showSection(sectionName) {
+      const viewSectionName = sectionName === "cricra" ? "tracker" : sectionName;
       ["tracker", "trades", "all-data", "cvm-filings"].forEach(name => {
-        document.getElementById("section-" + name).classList.toggle("active", name === sectionName);
+        document.getElementById("section-" + name).classList.toggle("active", name === viewSectionName);
+      });
+      ["tracker", "cricra", "trades", "all-data", "cvm-filings"].forEach(name => {
         document.getElementById("menu-" + name).classList.toggle("active", name === sectionName);
       });
+
+      if (sectionName === "tracker") currentAssetClass = "debenture";
+      if (sectionName === "cricra") currentAssetClass = "cricra";
+      if (sectionName === "tracker" || sectionName === "cricra") {
+        loadTables();
+        loadIssuerList();
+      }
 
       if (sectionName === "all-data" && !allDataLoaded[allDataIndex]) {
         loadAllData();
@@ -982,7 +994,7 @@
     }
 
     async function loadIssuerList() {
-      const resp = await fetch("/issuers");
+      const resp = await fetch("/issuers?asset_class=" + encodeURIComponent(currentAssetClass));
       if (!resp.ok) return;
 
       const issuers = await resp.json();
@@ -1122,7 +1134,7 @@
       document.getElementById("msg").innerText = "Loading issuer data...";
       document.getElementById("index-info").innerText = "";
 
-      const resp = await fetch("/issuer-data?issuer=" + encodeURIComponent(issuer));
+      const resp = await fetch("/issuer-data?asset_class=" + encodeURIComponent(currentAssetClass) + "&issuer=" + encodeURIComponent(issuer));
       if (!resp.ok) {
         document.getElementById("msg").innerText = "Error loading issuer data.";
         return;
@@ -1237,7 +1249,7 @@
       document.getElementById("msg").innerText = "Loading data...";
       document.getElementById("index-info").innerText = "";
 
-      const resp = await fetch("/data?code=" + encodeURIComponent(code));
+      const resp = await fetch("/data?asset_class=" + encodeURIComponent(currentAssetClass) + "&code=" + encodeURIComponent(code));
       if (!resp.ok) {
         document.getElementById("msg").innerText = "Error loading data.";
         return;
@@ -1316,7 +1328,7 @@
     }
 
     async function loadTables() {
-      const resp = await fetch("/tables");
+      const resp = await fetch("/tables?asset_class=" + encodeURIComponent(currentAssetClass));
       if (!resp.ok) return;
 
       const data = await resp.json();
@@ -1513,7 +1525,7 @@
       body.innerHTML = "";
       footer.innerText = "";
 
-      const resp = await fetch("/all-data?index=" + encodeURIComponent(allDataIndex));
+      const resp = await fetch("/all-data?asset_class=" + encodeURIComponent(currentAssetClass) + "&index=" + encodeURIComponent(allDataIndex));
       if (!resp.ok) {
         msg.innerText = "Error loading all data.";
         return;

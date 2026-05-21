@@ -17,6 +17,7 @@ from google.cloud import storage
 
 GCS_BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME", "debentures-anbima-am")
 GCS_PREFIX = os.environ.get("GCS_PREFIX", "anbima_debentures/")
+GCS_CRICRA_PREFIX = os.environ.get("GCS_CRICRA_PREFIX", "anbima_cricra/")
 B3_INFO_PREFIX = os.environ.get("B3_INFO_PREFIX", "b3_infos/")
 B3_INFO_FILENAME = os.environ.get("B3_INFO_FILENAME", "Debentures.csv")
 
@@ -49,6 +50,8 @@ app = Flask(__name__)
 # CACHE_SECONDS = 0 => cache infinito até o container reiniciar.
 _history_cache = None
 _last_load_time = 0
+_history_cache_cricra = None
+_last_load_time_cricra = 0
 
 _volume_cache = None
 _volume_last_load_time = 0
@@ -74,6 +77,10 @@ TRADES_LOOKBACK_DAYS = 10
 
 def get_history_blob_name() -> str:
     prefix = GCS_PREFIX.rstrip("/") + "/"
+    return prefix + "historico-anbima.json"
+
+def get_history_blob_name_cricra() -> str:
+    prefix = GCS_CRICRA_PREFIX.rstrip("/") + "/"
     return prefix + "historico-anbima.json"
 
 
@@ -152,18 +159,26 @@ def is_cache_valid(last_load_time):
     return time.time() - last_load_time < CACHE_SECONDS
 
 
-def load_history():
+def load_history(asset_class="debenture"):
     """Carrega o JSON consolidado do GCS, com cache em memória."""
-    global _history_cache, _last_load_time
+    global _history_cache, _last_load_time, _history_cache_cricra, _last_load_time_cricra
 
-    if _history_cache is not None and is_cache_valid(_last_load_time):
-        print("Usando histórico ANBIMA do cache em memória...")
-        return _history_cache
+    if asset_class == "cricra":
+        if _history_cache_cricra is not None and is_cache_valid(_last_load_time_cricra):
+            print("Usando histórico ANBIMA CRI/CRA do cache em memória...")
+            return _history_cache_cricra
+        cache_ref = "_history_cache_cricra"
+        blob_name = get_history_blob_name_cricra()
+    else:
+        if _history_cache is not None and is_cache_valid(_last_load_time):
+            print("Usando histórico ANBIMA do cache em memória...")
+            return _history_cache
+        cache_ref = "_history_cache"
+        blob_name = get_history_blob_name()
 
     now = time.time()
     client = storage.Client()
     bucket = client.bucket(GCS_BUCKET_NAME)
-    blob_name = get_history_blob_name()
     blob = bucket.blob(blob_name)
 
     print(f"Carregando histórico de gs://{GCS_BUCKET_NAME}/{blob_name}...")
@@ -175,9 +190,13 @@ def load_history():
     data = json.loads(text)
     print(f"JSON histórico ANBIMA parseado em {time.time() - t1:.1f}s")
 
+    if cache_ref == "_history_cache_cricra":
+        _history_cache_cricra = data
+        _last_load_time_cricra = now
+        return _history_cache_cricra
     _history_cache = data
     _last_load_time = now
-    return data
+    return _history_cache
 
 
 def load_volume_map():
@@ -707,12 +726,12 @@ def filter_recent_identified_trades(rows):
     return deduped, latest_date_str
 
 
-def build_latest_rows(limit=None):
+def build_latest_rows(limit=None, asset_class="debenture"):
     """
     Monta linhas consolidadas para a última data disponível, por ticker/indexador.
     Usado nas tabelas Top 30 e na aba All Data.
     """
-    hist = load_history()
+    hist = load_history(asset_class=asset_class)
     volume_map = load_volume_map()
 
     latest_date_str = None
@@ -806,11 +825,12 @@ def index():
 
 @app.route("/data")
 def data_route():
+    asset_class = request.args.get("asset_class", "debenture").strip().lower()
     code = request.args.get("code", "").strip()
     if not code:
         return jsonify([])
 
-    hist = load_history()
+    hist = load_history(asset_class=asset_class)
     serie = hist.get(code, [])
     serie = sorted(serie, key=lambda x: x["date"])
     return jsonify(serie)
@@ -818,7 +838,8 @@ def data_route():
 
 @app.route("/issuers")
 def issuers_route():
-    hist = load_history()
+    asset_class = request.args.get("asset_class", "debenture").strip().lower()
+    hist = load_history(asset_class=asset_class)
 
     issuers = set()
 
@@ -833,11 +854,12 @@ def issuers_route():
 
 @app.route("/issuer-data")
 def issuer_data_route():
+    asset_class = request.args.get("asset_class", "debenture").strip().lower()
     issuer_query = request.args.get("issuer", "").strip()
     if not issuer_query:
         return jsonify([])
 
-    hist = load_history()
+    hist = load_history(asset_class=asset_class)
 
     q_norm = normalize_text_search(issuer_query)
     rows = []
@@ -867,7 +889,8 @@ def issuer_data_route():
 
 @app.route("/tables")
 def tables():
-    rows, latest_date_str = build_latest_rows()
+    asset_class = request.args.get("asset_class", "debenture").strip().lower()
+    rows, latest_date_str = build_latest_rows(asset_class=asset_class)
 
     if latest_date_str is None:
         return jsonify(
@@ -908,11 +931,12 @@ def tables():
 
 @app.route("/all-data")
 def all_data_route():
+    asset_class = request.args.get("asset_class", "debenture").strip().lower()
     index = request.args.get("index", "CDI").strip().upper()
     if index not in {"CDI", "IPCA"}:
         index = "CDI"
 
-    rows, latest_date_str = build_latest_rows()
+    rows, latest_date_str = build_latest_rows(asset_class=asset_class)
 
     filtered = [
         r for r in rows

@@ -329,7 +329,51 @@ def clean_issuer_py(x):
             break
 
     s = " ".join(s.strip().split())
-    return s.title()
+    if not s:
+        return ""
+
+    lower_words = {
+        "e", "de", "da", "do", "das", "dos", "di", "du", "del",
+        "la", "le", "van", "von", "y"
+    }
+    upper_words = {"S.A.", "S/A", "SA", "S.A", "CVM", "B3", "CRI", "CRA"}
+
+    parts = s.split(" ")
+    result = []
+
+    for i, word in enumerate(parts):
+        raw = word.strip()
+        if not raw:
+            continue
+
+        letters_only = re.sub(r"[^A-Za-zÀ-ÿ]", "", raw)
+        upper_raw = raw.upper()
+        upper_letters = letters_only.upper()
+
+        if upper_raw in upper_words or upper_letters == "SA":
+            result.append("S.A." if upper_letters == "SA" else upper_raw)
+            continue
+
+        if letters_only == "":
+            result.append(raw)
+            continue
+
+        lower_raw = raw.lower()
+        if i > 0 and lower_raw in lower_words:
+            result.append(lower_raw)
+            continue
+
+        hyphen_parts = raw.split("-")
+        hyphen_out = []
+        for hp in hyphen_parts:
+            hp_clean = hp.lower()
+            if not hp_clean:
+                hyphen_out.append(hp)
+            else:
+                hyphen_out.append(hp_clean[:1].upper() + hp_clean[1:])
+        result.append("-".join(hyphen_out))
+
+    return " ".join(result)
 
 
 # ============================================================

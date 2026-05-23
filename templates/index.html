@@ -562,7 +562,7 @@
   <!-- DEBENTURE TRACKER -->
   <section id="section-tracker" class="view-section active">
     <div class="section-card">
-      <h2 class="section-title">Debenture Tracker</h2>
+      <h2 id="tracker-title" class="section-title">Debenture Tracker</h2>
       <p class="section-note">Search by ticker or issuer to analyze ANBIMA historical prices and indicative yields.</p>
 
       <div class="form-area" id="form-area">
@@ -792,9 +792,19 @@
 
       if (sectionName === "tracker") currentAssetClass = "debenture";
       if (sectionName === "cricra") currentAssetClass = "cricra";
+
+      const trackerTitle = document.getElementById("tracker-title");
+      if (trackerTitle) {
+        trackerTitle.innerText = sectionName === "cricra" ? "CRI/CRA Tracker" : "Debenture Tracker";
+      }
+
       if (sectionName === "tracker" || sectionName === "cricra") {
         loadTables();
         loadIssuerList();
+      }
+
+      if (sectionName === "cricra") {
+        loadDefaultCricraChart();
       }
 
       if (sectionName === "all-data" && !allDataLoaded[allDataIndex]) {
@@ -874,8 +884,47 @@
           break;
         }
       }
-      const normalized = s.trim().replace(/\s+/g, " " ).toLowerCase();
-      return normalized.replace(/\b([\p{L}\p{N}])/gu, c => c.toUpperCase());
+
+      const lowerWords = new Set(["e", "de", "da", "do", "das", "dos", "di", "du", "del", "la", "le", "van", "von", "y"]);
+      const upperWords = new Set(["S.A.", "S/A", "SA", "S.A", "CVM", "B3", "CRI", "CRA"]);
+
+      const words = s.trim().replace(/\s+/g, " ").split(" ");
+      const out = [];
+
+      for (let i = 0; i < words.length; i++) {
+        const raw = words[i];
+        if (!raw) continue;
+
+        const lettersOnly = raw.replace(/[^\p{L}]/gu, "");
+        const upperRaw = raw.toUpperCase();
+        const upperLetters = lettersOnly.toUpperCase();
+
+        if (upperWords.has(upperRaw) || upperLetters === "SA") {
+          out.push(upperLetters === "SA" ? "S.A." : upperRaw);
+          continue;
+        }
+
+        if (!lettersOnly) {
+          out.push(raw);
+          continue;
+        }
+
+        const lowerRaw = raw.toLowerCase();
+        if (i > 0 && lowerWords.has(lowerRaw)) {
+          out.push(lowerRaw);
+          continue;
+        }
+
+        const hyphenParts = raw.split("-");
+        const hyphenOut = hyphenParts.map(part => {
+          const p = part.toLowerCase();
+          if (!p) return part;
+          return p.charAt(0).toUpperCase() + p.slice(1);
+        });
+        out.push(hyphenOut.join("-"));
+      }
+
+      return out.join(" ");
     }
 
     function formatMaturityMMMYY(v) {
@@ -1335,6 +1384,21 @@
       }];
 
       renderChart(chartTitle, indexLine, labels, datasets, metric);
+    }
+
+    async function loadDefaultCricraChart() {
+      const resp = await fetch("/tables?asset_class=cricra");
+      if (!resp.ok) return;
+
+      const data = await resp.json();
+      const topCdi = (data.top_cdi_spread || [])[0];
+      if (!topCdi || !topCdi.code) return;
+
+      document.getElementById("issuer").value = "";
+      document.getElementById("code").value = String(topCdi.code).toUpperCase();
+      document.getElementById("metric").value = "TAXA";
+      syncSearchMode();
+      await loadData();
     }
 
     async function loadTables() {

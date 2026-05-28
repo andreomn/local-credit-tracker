@@ -12,7 +12,7 @@ import difflib
 from datetime import date as date_cls, timedelta, datetime
 
 import requests
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, Response, stream_with_context
 from google.cloud import storage
 
 GCS_BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME", "debentures-anbima-am")
@@ -336,7 +336,7 @@ def clean_issuer_py(x):
         "e", "de", "da", "do", "das", "dos", "di", "du", "del",
         "la", "le", "van", "von", "y"
     }
-    upper_words = {"S.A.", "S/A", "SA", "S.A", "CVM", "B3", "CRI", "CRA"}
+    upper_words = {"S.A.", "S/A", "SA", "S.A", "CVM", "B3", "CRI", "CRA", "BCBF", "CSN", "SPE", "FS"}
 
     parts = s.split(" ")
     result = []
@@ -721,17 +721,43 @@ def find_codes_for_issuer(issuer_query: str):
     if not q_norm:
         return []
 
-    hist = load_history()
+    histories = [load_history(asset_class="debenture"), load_history(asset_class="cricra")]
     codes = set()
 
-    for code, series in hist.items():
-        for p in series:
-            issuer_norm = normalize_text_search(p.get("issuer"))
-            if issuer_norm and q_norm in issuer_norm:
-                codes.add((code or "").strip().upper())
-                break
+    for hist in histories:
+        for code, series in hist.items():
+            for p in series:
+                issuer_norm = normalize_text_search(p.get("issuer"))
+                if issuer_norm and q_norm in issuer_norm:
+                    codes.add((code or "").strip().upper())
+                    break
 
     return sorted(c for c in codes if c)
+
+
+def get_asset_type_for_code(code: str):
+    safe_code = (code or "").strip().upper()
+    if not safe_code:
+        return None
+
+    if safe_code in load_history(asset_class="cricra"):
+        return "cri/cra"
+    if safe_code in load_history(asset_class="debenture"):
+        return "debenture"
+    return None
+
+
+def add_asset_type_to_trade_rows(rows):
+    type_by_code = {}
+    for row in rows:
+        code = (row.get("code") or "").strip().upper()
+        if not code:
+            continue
+        if code not in type_by_code:
+            type_by_code[code] = get_asset_type_for_code(code)
+        if type_by_code[code]:
+            row["type"] = type_by_code[code]
+    return rows
 
 
 def filter_recent_identified_trades(rows):
@@ -892,15 +918,20 @@ def data_route():
 @app.route("/issuers")
 def issuers_route():
     asset_class = request.args.get("asset_class", "debenture").strip().lower()
-    hist = load_history(asset_class=asset_class)
+    histories = (
+        [load_history(asset_class="debenture"), load_history(asset_class="cricra")]
+        if asset_class == "trades"
+        else [load_history(asset_class=asset_class)]
+    )
 
     issuers = set()
 
-    for series in hist.values():
-        for p in series:
-            issuer = clean_issuer_py(p.get("issuer"))
-            if issuer:
-                issuers.add(issuer)
+    for hist in histories:
+        for series in hist.values():
+            for p in series:
+                issuer = clean_issuer_py(p.get("issuer"))
+                if issuer:
+                    issuers.add(issuer)
 
     return jsonify(sorted(issuers))
 
@@ -1060,6 +1091,7 @@ def trades_route():
         )
 
     deduped, latest_date_str = filter_recent_identified_trades(rows)
+    deduped = add_asset_type_to_trade_rows(deduped)
 
     print(
         f"Trades retornados para {query_desc}: total_encontrado={len(rows)}, "
@@ -1077,6 +1109,126 @@ def trades_route():
     )
 
 
+def trades_cache_totals(historico):
+    total_dates = len(historico)
+    total_rows = 0
+
+    for day_rows in historico.values():
+        if isinstance(day_rows, list):
+            total_rows += len(day_rows)
+
+    return total_dates, total_rows
+
+
+def trades_cache_progress_events():
+    global _trades_cache, _trades_last_load_time
+
+    def event(payload):
+        return json.dumps(payload) + "\n"
+
+    t0 = time.time()
+
+    try:
+        if _trades_cache is not None and is_cache_valid(_trades_last_load_time):
+            total_dates, total_rows = trades_cache_totals(_trades_cache)
+            yield event({
+                "ok": True,
+                "percent": 100,
+                "done": True,
+                "elapsed_seconds": time.time() - t0,
+                "dates": total_dates,
+                "rows": total_rows,
+                "cached": True,
+            })
+            return
+
+        with _trades_cache_lock:
+            if _trades_cache is not None and is_cache_valid(_trades_last_load_time):
+                total_dates, total_rows = trades_cache_totals(_trades_cache)
+                yield event({
+                    "ok": True,
+                    "percent": 100,
+                    "done": True,
+                    "elapsed_seconds": time.time() - t0,
+                    "dates": total_dates,
+                    "rows": total_rows,
+                    "cached": True,
+                })
+                return
+
+            now = time.time()
+            client = storage.Client()
+            bucket = client.bucket(GCS_BUCKET_NAME)
+            blob_name = get_trades_blob_name()
+            blob = bucket.blob(blob_name)
+            blob.reload()
+            total_bytes = blob.size or 0
+
+            print(f"Carregando trades de gs://{GCS_BUCKET_NAME}/{blob_name}...")
+            yield event({"ok": True, "percent": 1, "done": False, "cached": False})
+
+            downloaded = 0
+            last_percent = 1
+            buffer = io.BytesIO()
+            download_t0 = time.time()
+
+            with blob.open("rb") as fh:
+                while True:
+                    chunk = fh.read(1024 * 1024)
+                    if not chunk:
+                        break
+
+                    buffer.write(chunk)
+                    downloaded += len(chunk)
+
+                    if total_bytes:
+                        percent = max(1, min(90, int(downloaded * 90 / total_bytes)))
+                    else:
+                        percent = min(90, last_percent + 1)
+
+                    if percent > last_percent:
+                        last_percent = percent
+                        yield event({"ok": True, "percent": percent, "done": False, "cached": False})
+
+            raw = buffer.getvalue()
+            print(
+                f"Download trades concluído em {time.time() - download_t0:.1f}s | "
+                f"tamanho={len(raw)/1024/1024:.1f} MB"
+            )
+            yield event({"ok": True, "percent": 95, "done": False, "cached": False})
+
+            parse_t0 = time.time()
+            historico = json.loads(raw.decode("utf-8"))
+            print(f"JSON trades parseado em {time.time() - parse_t0:.1f}s")
+
+            if not isinstance(historico, dict):
+                historico = {}
+
+            _trades_cache = historico
+            _trades_last_load_time = now
+
+            total_dates, total_rows = trades_cache_totals(historico)
+            elapsed = time.time() - t0
+
+            print(
+                f"Warm cache trades concluído em {elapsed:.1f}s | "
+                f"datas={total_dates:,} | registros={total_rows:,}"
+            )
+
+            yield event({
+                "ok": True,
+                "percent": 100,
+                "done": True,
+                "elapsed_seconds": elapsed,
+                "dates": total_dates,
+                "rows": total_rows,
+                "cached": True,
+            })
+    except Exception as e:
+        print(f"Erro ao aquecer cache de trades: {e}")
+        yield event({"ok": False, "percent": 0, "done": True, "error": str(e), "cached": False})
+
+
 @app.route("/warm-trades-cache")
 def warm_trades_cache_route():
     """
@@ -1084,17 +1236,17 @@ def warm_trades_cache_route():
     Ele força o carregamento do historico-trades.json para o cache em memória,
     sem executar nenhuma busca ainda.
     """
+    if request.args.get("progress") == "1":
+        return Response(
+            stream_with_context(trades_cache_progress_events()),
+            mimetype="application/x-ndjson",
+        )
+
     try:
         t0 = time.time()
         historico = load_trades_history()
 
-        total_dates = len(historico)
-        total_rows = 0
-
-        for day_rows in historico.values():
-            if isinstance(day_rows, list):
-                total_rows += len(day_rows)
-
+        total_dates, total_rows = trades_cache_totals(historico)
         elapsed = time.time() - t0
 
         print(
@@ -1332,7 +1484,7 @@ def cvm_company_name_proper(value):
     }
 
     upper_words = {
-        "S.A.", "S/A", "SA", "S.A", "S", "A", "CVM", "B3"
+        "S.A.", "S/A", "SA", "S.A", "S", "A", "CVM", "B3", "BCBF", "CSN", "SPE", "FS"
     }
 
     parts = s.split(" ")
@@ -1347,7 +1499,7 @@ def cvm_company_name_proper(value):
         upper_raw = raw.upper()
         upper_letters = letters_only.upper()
 
-        if upper_raw in upper_words or upper_letters in {"SA", "CVM", "B3"}:
+        if upper_raw in upper_words or upper_letters in {"SA", "CVM", "B3", "BCBF", "CSN", "SPE", "FS"}:
             if upper_letters == "SA":
                 result.append("S.A.")
             else:

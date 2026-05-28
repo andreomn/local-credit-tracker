@@ -359,6 +359,31 @@
       text-decoration: underline;
     }
 
+    .cache-progress {
+      display: none;
+      width: 100%;
+      height: 10px;
+      margin: 4px 0 2px;
+      background: var(--soft);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .cache-progress-bar {
+      width: 0%;
+      height: 100%;
+      background: var(--blue);
+      transition: width 0.2s ease;
+    }
+
+    .cache-progress-label {
+      font-size: 12px;
+      color: #555;
+      text-align: right;
+      min-height: 14px;
+    }
+
     .table-scroll {
       width: 100%;
       overflow-x: auto;
@@ -662,6 +687,10 @@
       </div>
 
       <div id="trades-msg" class="msg"></div>
+      <div id="trades-cache-progress" class="cache-progress" aria-hidden="true">
+        <div id="trades-cache-progress-bar" class="cache-progress-bar"></div>
+      </div>
+      <div id="trades-cache-progress-label" class="cache-progress-label"></div>
 
       <div class="table-scroll">
         <table id="trades-table">
@@ -803,8 +832,16 @@
         loadIssuerList();
       }
 
+      if (sectionName === "tracker") {
+        loadDefaultDebentureChart();
+      }
+
       if (sectionName === "cricra") {
         loadDefaultCricraChart();
+      }
+
+      if (sectionName === "trades") {
+        loadTradesIssuerList();
       }
 
       if (sectionName === "all-data" && !allDataLoaded[allDataIndex]) {
@@ -886,7 +923,7 @@
       }
 
       const lowerWords = new Set(["e", "de", "da", "do", "das", "dos", "di", "du", "del", "la", "le", "van", "von", "y"]);
-      const upperWords = new Set(["S.A.", "S/A", "SA", "S.A", "CVM", "B3", "CRI", "CRA"]);
+      const upperWords = new Set(["S.A.", "S/A", "SA", "S.A", "CVM", "B3", "CRI", "CRA", "BCBF", "CSN", "SPE", "FS"]);
 
       const words = s.trim().replace(/\s+/g, " ").split(" ");
       const out = [];
@@ -1052,11 +1089,7 @@
       }
     }
 
-    async function loadIssuerList() {
-      const resp = await fetch("/issuers?asset_class=" + encodeURIComponent(currentAssetClass));
-      if (!resp.ok) return;
-
-      const issuers = await resp.json();
+    function populateIssuerList(issuers) {
       const datalist = document.getElementById("issuer-list");
       datalist.innerHTML = "";
 
@@ -1065,6 +1098,22 @@
         opt.value = issuer;
         datalist.appendChild(opt);
       });
+    }
+
+    async function loadIssuerList() {
+      const resp = await fetch("/issuers?asset_class=" + encodeURIComponent(currentAssetClass));
+      if (!resp.ok) return;
+
+      const issuers = await resp.json();
+      populateIssuerList(issuers);
+    }
+
+    async function loadTradesIssuerList() {
+      const resp = await fetch("/issuers?asset_class=trades");
+      if (!resp.ok) return;
+
+      const issuers = await resp.json();
+      populateIssuerList(issuers);
     }
 
     function renderChart(chartTitle, indexLine, labels, datasets, metric) {
@@ -1386,6 +1435,14 @@
       renderChart(chartTitle, indexLine, labels, datasets, metric);
     }
 
+    async function loadDefaultDebentureChart() {
+      document.getElementById("issuer").value = "";
+      document.getElementById("code").value = "NTEN11";
+      document.getElementById("metric").value = "TAXA";
+      syncSearchMode();
+      await loadData();
+    }
+
     async function loadDefaultCricraChart() {
       const resp = await fetch("/tables?asset_class=cricra");
       if (!resp.ok) return;
@@ -1474,36 +1531,92 @@
       }
     }
 
+    function setTradesCacheProgress(percent) {
+      const progress = document.getElementById("trades-cache-progress");
+      const bar = document.getElementById("trades-cache-progress-bar");
+      const label = document.getElementById("trades-cache-progress-label");
+      const safePercent = Math.max(0, Math.min(100, Math.round(Number(percent) || 0)));
+
+      if (progress) {
+        progress.style.display = safePercent >= 100 || safePercent <= 0 ? "none" : "block";
+        progress.setAttribute("aria-hidden", safePercent >= 100 || safePercent <= 0 ? "true" : "false");
+      }
+      if (bar) bar.style.width = safePercent + "%";
+      if (label) label.innerText = safePercent > 0 && safePercent < 100 ? safePercent + "%" : "";
+    }
+
     async function warmTradesCache() {
+      const preloadText = "Preloading trades cache...";
+
       try {
         const msg = document.getElementById("trades-msg");
 
         if (msg && !msg.innerText) {
-          msg.innerText = "Preloading trades cache...";
+          msg.innerText = preloadText;
         }
+        setTradesCacheProgress(1);
 
-        const resp = await fetch("/warm-trades-cache");
+        const resp = await fetch("/warm-trades-cache?progress=1");
 
         if (!resp.ok) {
-          if (msg && msg.innerText === "Preloading trades cache...") {
+          if (msg && msg.innerText === preloadText) {
             msg.innerText = "";
           }
+          setTradesCacheProgress(0);
           return;
         }
 
-        const data = await resp.json();
-        console.log("Trades cache warmed:", data);
+        if (!resp.body) {
+          const data = await resp.json();
+          console.log("Trades cache warmed:", data);
+          setTradesCacheProgress(100);
+        } else {
+          const reader = resp.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+          let finalData = null;
 
-        if (msg && msg.innerText === "Preloading trades cache...") {
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop();
+
+            lines.forEach(line => {
+              if (!line.trim()) return;
+              const event = JSON.parse(line);
+              if (event.percent !== undefined) {
+                setTradesCacheProgress(event.percent);
+              }
+              if (event.done) {
+                finalData = event;
+              }
+            });
+          }
+
+          buffer += decoder.decode();
+          if (buffer.trim()) {
+            const event = JSON.parse(buffer);
+            if (event.percent !== undefined) setTradesCacheProgress(event.percent);
+            if (event.done) finalData = event;
+          }
+
+          console.log("Trades cache warmed:", finalData);
+        }
+
+        if (msg && msg.innerText === preloadText) {
           msg.innerText = "";
         }
+        setTradesCacheProgress(0);
       } catch (e) {
         console.log("Could not preload trades cache:", e);
 
         const msg = document.getElementById("trades-msg");
-        if (msg && msg.innerText === "Preloading trades cache...") {
+        if (msg && msg.innerText === preloadText) {
           msg.innerText = "";
         }
+        setTradesCacheProgress(0);
       }
     }
 
@@ -1557,7 +1670,7 @@
         const tr = document.createElement("tr");
         tr.innerHTML = `
           <td>${formatDateDDMMMYY_EN(entry.date)}</td>
-          <td class="code">${tickerLink(entry.code)}</td>
+          <td class="code">${tickerLink(entry.code, entry.type)}</td>
           <td>${formatInteger(entry.quantity)}</td>
           <td>${entry.price != null ? formatNumber(entry.price, 1) : ""}</td>
           <td>${entry.rate != null ? formatPercent(entry.rate, 1) : ""}</td>

@@ -46,15 +46,22 @@ CVM_ENET_LIVE_FALLBACK = os.environ.get("CVM_ENET_LIVE_FALLBACK", "1").lower() n
 app = Flask(__name__)
 
 # Cache simples em memória.
-# CACHE_SECONDS = 3600 => usa cache por 1 hora.
+# CACHE_SECONDS = 7200 => usa cache por 2 horas.
 # CACHE_SECONDS = 0 => cache infinito até o container reiniciar.
 _history_cache = None
 _last_load_time = 0
 _history_cache_cricra = None
 _last_load_time_cricra = 0
+_history_cache_lock = threading.Lock()
 
 _volume_cache = None
 _volume_last_load_time = 0
+_volume_cache_lock = threading.Lock()
+
+_latest_rows_cache = {}
+_latest_rows_cache_lock = threading.Lock()
+_issuers_cache = {}
+_issuers_cache_lock = threading.Lock()
 
 _trades_cache = None
 _trades_last_load_time = 0
@@ -70,7 +77,7 @@ _cvm_cache_lock = threading.Lock()
 _cvm_company_list_cache = []
 _cvm_company_list_cache_lock = threading.Lock()
 
-CACHE_SECONDS = 3600
+CACHE_SECONDS = 7200
 TABLE_LIMIT = 30
 TRADES_LOOKBACK_DAYS = 10
 
@@ -163,47 +170,63 @@ def load_history(asset_class="debenture"):
     """Carrega o JSON consolidado do GCS, com cache em memória."""
     global _history_cache, _last_load_time, _history_cache_cricra, _last_load_time_cricra
 
-    if asset_class == "cricra":
+    is_cricra = asset_class == "cricra"
+
+    if is_cricra:
         if _history_cache_cricra is not None and is_cache_valid(_last_load_time_cricra):
             print("Usando histórico ANBIMA CRI/CRA do cache em memória...")
             return _history_cache_cricra
-        cache_ref = "_history_cache_cricra"
         blob_name = get_history_blob_name()
     else:
         if _history_cache is not None and is_cache_valid(_last_load_time):
             print("Usando histórico ANBIMA do cache em memória...")
             return _history_cache
-        cache_ref = "_history_cache"
         blob_name = get_history_blob_name()
 
-    now = time.time()
-    client = storage.Client()
-    bucket = client.bucket(GCS_BUCKET_NAME)
-    blob = bucket.blob(blob_name)
+    with _history_cache_lock:
+        if is_cricra:
+            if _history_cache_cricra is not None and is_cache_valid(_last_load_time_cricra):
+                print("Usando histórico ANBIMA CRI/CRA do cache em memória...")
+                return _history_cache_cricra
+        else:
+            if _history_cache is not None and is_cache_valid(_last_load_time):
+                print("Usando histórico ANBIMA do cache em memória...")
+                return _history_cache
 
-    print(f"Carregando histórico de gs://{GCS_BUCKET_NAME}/{blob_name}...")
-    t0 = time.time()
-    text = blob.download_as_text(encoding="utf-8")
-    print(f"Download histórico ANBIMA concluído em {time.time() - t0:.1f}s | tamanho={len(text)/1024/1024:.1f} MB")
+        now = time.time()
+        client = storage.Client()
+        bucket = client.bucket(GCS_BUCKET_NAME)
+        blob = bucket.blob(blob_name)
 
-    t1 = time.time()
-    full_data = json.loads(text)
-    print(f"JSON histórico ANBIMA parseado em {time.time() - t1:.1f}s")
+        print(f"Carregando histórico de gs://{GCS_BUCKET_NAME}/{blob_name}...")
+        t0 = time.time()
+        text = blob.download_as_text(encoding="utf-8")
+        print(f"Download histórico ANBIMA concluído em {time.time() - t0:.1f}s | tamanho={len(text)/1024/1024:.1f} MB")
 
-    expected_type = "cri/cra" if asset_class == "cricra" else "debenture"
-    data = {
-        code: [p for p in series if (p.get("type") or "").strip().lower() == expected_type]
-        for code, series in full_data.items()
-    }
-    data = {code: series for code, series in data.items() if series}
+        t1 = time.time()
+        full_data = json.loads(text)
+        print(f"JSON histórico ANBIMA parseado em {time.time() - t1:.1f}s")
 
-    if cache_ref == "_history_cache_cricra":
-        _history_cache_cricra = data
+        debenture_data = {
+            code: [p for p in series if (p.get("type") or "").strip().lower() == "debenture"]
+            for code, series in full_data.items()
+        }
+        debenture_data = {code: series for code, series in debenture_data.items() if series}
+
+        cricra_data = {
+            code: [p for p in series if (p.get("type") or "").strip().lower() == "cri/cra"]
+            for code, series in full_data.items()
+        }
+        cricra_data = {code: series for code, series in cricra_data.items() if series}
+
+        _history_cache = debenture_data
+        _last_load_time = now
+        _history_cache_cricra = cricra_data
         _last_load_time_cricra = now
-        return _history_cache_cricra
-    _history_cache = data
-    _last_load_time = now
-    return _history_cache
+
+        if is_cricra:
+            return _history_cache_cricra
+        return _history_cache
 
 
 def load_volume_map():
@@ -214,30 +237,35 @@ def load_volume_map():
         print("Usando CSV de volumes do cache em memória...")
         return _volume_cache
 
-    now = time.time()
-    client = storage.Client()
-    bucket = client.bucket(GCS_BUCKET_NAME)
-    blob_name = get_volume_blob_name()
-    blob = bucket.blob(blob_name)
+    with _volume_cache_lock:
+        if _volume_cache is not None and is_cache_valid(_volume_last_load_time):
+            print("Usando CSV de volumes do cache em memória...")
+            return _volume_cache
 
-    print(f"Carregando CSV de volumes de gs://{GCS_BUCKET_NAME}/{blob_name}...")
-    t0 = time.time()
-    text = blob.download_as_text(encoding="latin1")
-    print(f"Download CSV volumes concluído em {time.time() - t0:.1f}s | tamanho={len(text)/1024/1024:.1f} MB")
+        now = time.time()
+        client = storage.Client()
+        bucket = client.bucket(GCS_BUCKET_NAME)
+        blob_name = get_volume_blob_name()
+        blob = bucket.blob(blob_name)
 
-    reader = csv.DictReader(io.StringIO(text), delimiter=";")
+        print(f"Carregando CSV de volumes de gs://{GCS_BUCKET_NAME}/{blob_name}...")
+        t0 = time.time()
+        text = blob.download_as_text(encoding="latin1")
+        print(f"Download CSV volumes concluído em {time.time() - t0:.1f}s | tamanho={len(text)/1024/1024:.1f} MB")
 
-    volume_map = {}
-    for row in reader:
-        code = (row.get("Código") or "").strip().upper()
-        volume = (row.get("Volume Emissão") or "").strip()
+        reader = csv.DictReader(io.StringIO(text), delimiter=";")
 
-        if code:
-            volume_map[code] = volume
+        volume_map = {}
+        for row in reader:
+            code = (row.get("Código") or "").strip().upper()
+            volume = (row.get("Volume Emissão") or "").strip()
 
-    _volume_cache = volume_map
-    _volume_last_load_time = now
-    return volume_map
+            if code:
+                volume_map[code] = volume
+
+        _volume_cache = volume_map
+        _volume_last_load_time = now
+        return volume_map
 
 
 def parse_number(value):
@@ -809,7 +837,17 @@ def build_latest_rows(limit=None, asset_class="debenture"):
     Monta linhas consolidadas para a última data disponível, por ticker/indexador.
     Usado nas tabelas Top 30 e na aba All Data.
     """
-    hist = load_history(asset_class=asset_class)
+    cache_key = (asset_class or "debenture").strip().lower()
+    with _latest_rows_cache_lock:
+        cached = _latest_rows_cache.get(cache_key)
+        if cached and is_cache_valid(cached["loaded_at"]):
+            rows = list(cached["rows"])
+            latest_date_str = cached["latest_date_str"]
+            if limit is not None:
+                return rows[:limit], latest_date_str
+            return rows, latest_date_str
+
+    hist = load_history(asset_class=cache_key)
     volume_map = load_volume_map()
 
     latest_date_str = None
@@ -891,6 +929,13 @@ def build_latest_rows(limit=None, asset_class="debenture"):
             }
 
     rows = list(result_map.values())
+    with _latest_rows_cache_lock:
+        _latest_rows_cache[cache_key] = {
+            "loaded_at": time.time(),
+            "rows": rows,
+            "latest_date_str": latest_date_str,
+        }
+
     if limit is not None:
         return rows[:limit], latest_date_str
     return rows, latest_date_str
@@ -898,7 +943,6 @@ def build_latest_rows(limit=None, asset_class="debenture"):
 
 @app.route("/")
 def index():
-    ensure_cvm_company_list()
     return render_template("index.html")
 
 
@@ -918,6 +962,12 @@ def data_route():
 @app.route("/issuers")
 def issuers_route():
     asset_class = request.args.get("asset_class", "debenture").strip().lower()
+
+    with _issuers_cache_lock:
+        cached = _issuers_cache.get(asset_class)
+        if cached and is_cache_valid(cached["loaded_at"]):
+            return jsonify(cached["issuers"])
+
     histories = (
         [load_history(asset_class="debenture"), load_history(asset_class="cricra")]
         if asset_class == "trades"
@@ -933,7 +983,14 @@ def issuers_route():
                 if issuer:
                     issuers.add(issuer)
 
-    return jsonify(sorted(issuers))
+    sorted_issuers = sorted(issuers)
+    with _issuers_cache_lock:
+        _issuers_cache[asset_class] = {
+            "loaded_at": time.time(),
+            "issuers": sorted_issuers,
+        }
+
+    return jsonify(sorted_issuers)
 
 
 @app.route("/issuer-data")

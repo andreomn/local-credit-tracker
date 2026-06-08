@@ -15,11 +15,11 @@
 
   <style>
     :root {
-      --blue: #070047;
-      --blue-dark: #040032;
-      --line: #dde2ee;
-      --soft: #f4f6fb;
-      --text: #222;
+      --blue: #4b0d22;
+      --blue-dark: #2b0613;
+      --line: #ead4dc;
+      --soft: #fbf0f3;
+      --text: #2a171d;
     }
 
     * {
@@ -32,16 +32,16 @@
       margin: 30px auto 60px auto;
       padding: 0 14px 30px 14px;
       color: var(--text);
-      background: #ffffff;
+      background: #fffafb;
     }
 
     .hero-banner {
       width: 100%;
-      background: linear-gradient(135deg, #070047 0%, #120066 100%);
+      background: linear-gradient(135deg, #2b0613 0%, #5d102b 100%);
       border-radius: 8px;
       padding: 24px 28px 20px 28px;
       margin-bottom: 24px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      box-shadow: 0 2px 10px rgba(43,6,19,0.12);
     }
 
     h1 {
@@ -50,7 +50,7 @@
       margin-top: 0;
       margin-bottom: 10px;
       letter-spacing: 0.03em;
-      color: #f5f6fb;
+      color: #fff6f8;
       font-weight: 700;
       position: relative;
     }
@@ -61,12 +61,12 @@
       width: 180px;
       height: 2px;
       margin: 10px 0 0 0;
-      background: linear-gradient(to right, rgba(243,245,250,0.95), rgba(243,245,250,0.15));
+      background: linear-gradient(to right, rgba(255,246,248,0.95), rgba(255,246,248,0.15));
     }
 
     .subtitle {
       text-align: left;
-      color: #d9dceb;
+      color: #f1d7df;
       font-size: 13px;
       margin-bottom: 0;
     }
@@ -80,7 +80,7 @@
     }
 
     .menu-btn {
-      background: #ffffff;
+      background: #fffafb;
       color: var(--blue);
       border: 1px solid var(--blue);
       min-width: 165px;
@@ -89,12 +89,12 @@
     }
 
     .menu-btn:hover {
-      background: #eef2fb;
+      background: #f8e5eb;
     }
 
     .menu-btn.active {
       background: var(--blue);
-      color: #ffffff;
+      color: #fffafb;
     }
 
     .view-section {
@@ -113,11 +113,11 @@
     }
 
     .section-card {
-      border: 1px solid #e4e8f2;
+      border: 1px solid #ead4dc;
       border-radius: 6px;
       padding: 18px 18px 8px 18px;
-      background: #ffffff;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+      background: #fffafb;
+      box-shadow: 0 1px 4px rgba(43,6,19,0.08);
       margin-bottom: 32px;
     }
 
@@ -132,7 +132,7 @@
 
     .section-note {
       text-align: center;
-      color: #555;
+      color: #6d4a55;
       font-size: 13px;
       margin: 0 0 16px 0;
     }
@@ -155,14 +155,14 @@
     input[type="text"], select {
       padding: 6px 8px;
       font-size: 14px;
-      border: 1px solid #b9c2d0;
+      border: 1px solid #cfa8b5;
       border-radius: 3px;
       font-family: "Times New Roman", Times, serif;
       min-height: 32px;
     }
 
     input[type="text"]:disabled {
-      background-color: #f4f4f4;
+      background-color: #f4e7eb;
       cursor: not-allowed;
     }
 
@@ -173,7 +173,7 @@
       border-radius: 3px;
       border: 1px solid var(--blue);
       background-color: var(--blue);
-      color: #fff;
+      color: #fffafb;
       font-weight: 600;
       font-family: "Times New Roman", Times, serif;
       min-height: 32px;
@@ -184,19 +184,36 @@
     }
 
     button.secondary {
-      background-color: #ffffff;
+      background-color: #fffafb;
       color: var(--blue);
     }
 
     button.secondary:hover {
-      background-color: #eef2fb;
+      background-color: #f8e5eb;
     }
 
     .msg {
       text-align: center;
       margin: 6px 0;
-      color: #555;
+      color: #6d4a55;
       min-height: 18px;
+    }
+
+    .msg.loading::before {
+      content: "";
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      margin-right: 7px;
+      border: 2px solid var(--line);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      vertical-align: -2px;
+      animation: tracker-spin 0.8s linear infinite;
+    }
+
+    @keyframes tracker-spin {
+      to { transform: rotate(360deg); }
     }
 
     #index-info {
@@ -223,20 +240,20 @@
       cursor: pointer;
       border-radius: 3px;
       border: 1px solid var(--blue);
-      background-color: #ffffff;
+      background-color: #fffafb;
       color: var(--blue);
       font-weight: 600;
       font-family: "Times New Roman", Times, serif;
     }
 
     #download-btn:hover {
-      background-color: #eef2fb;
+      background-color: #f8e5eb;
     }
 
     #download-btn:disabled {
       cursor: not-allowed;
       opacity: 0.55;
-      background-color: #f4f4f4;
+      background-color: #f4e7eb;
     }
 
     #chart-container {
@@ -270,7 +287,7 @@
       margin-top: 8px;
       margin-bottom: 60px;
       font-size: 13px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      box-shadow: 0 1px 3px rgba(43,6,19,0.08);
     }
 
     thead tr {
@@ -280,10 +297,10 @@
     th {
       padding: 7px 6px;
       text-align: center;
-      color: #ffffff;
+      color: #fffafb;
       font-weight: 600;
-      border-top: 1px solid #1c2a57;
-      border-bottom: 1px solid #1c2a57;
+      border-top: 1px solid #6d1a35;
+      border-bottom: 1px solid #6d1a35;
       border-left: none;
       border-right: none;
       font-size: 12px;
@@ -304,7 +321,7 @@
     }
 
     tbody tr:nth-child(odd) {
-      background-color: #ffffff;
+      background-color: #fffafb;
     }
 
     td {
@@ -337,7 +354,7 @@
     #cvm-filings-footer {
       text-align: right;
       font-size: 12px;
-      color: #555;
+      color: #6d4a55;
       margin-top: -42px;
       margin-bottom: 20px;
     }
@@ -379,7 +396,7 @@
 
     .cache-progress-label {
       font-size: 12px;
-      color: #555;
+      color: #6d4a55;
       text-align: right;
       min-height: 14px;
     }
@@ -467,7 +484,7 @@
     #cvm-filings-table td.cvm-company .small-text {
       font-weight: 400;
       font-size: 10px;
-      color: #555;
+      color: #6d4a55;
     }
 
     #cvm-filings-table td.cvm-subject {
@@ -543,25 +560,25 @@
       border: 1px solid var(--blue);
       border-radius: 999px;
       overflow: hidden;
-      background: #ffffff;
+      background: #fffafb;
     }
 
     .pill-toggle button {
       border: none;
       border-radius: 0;
-      background: #ffffff;
+      background: #fffafb;
       color: var(--blue);
       min-width: 70px;
     }
 
     .pill-toggle button.active {
       background: var(--blue);
-      color: #ffffff;
+      color: #fffafb;
     }
 
     .small-text {
       font-size: 12px;
-      color: #555;
+      color: #6d4a55;
     }
   </style>
 </head>
@@ -810,6 +827,32 @@
     let allDataSortKey = "taxa_indicativa";
     let allDataSortDir = "desc";
 
+    function setTrackerMessage(text, isLoading) {
+      const msg = document.getElementById("msg");
+      if (!msg) return;
+      msg.innerText = text || "";
+      msg.classList.toggle("loading", !!isLoading);
+    }
+
+    function clearTrackerTables() {
+      ["table-cdi-body", "table-ipca-body", "table-low-brl-body"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = "";
+      });
+      const footer = document.getElementById("tables-footer");
+      if (footer) footer.innerText = "";
+    }
+
+    function prepareTrackerLoading(sectionName) {
+      const isCricra = sectionName === "cricra";
+      setTrackerMessage(isCricra ? "Loading CRI/CRA data..." : "Loading debenture data...", true);
+      document.getElementById("index-info").innerText = "";
+      currentChartRows = [];
+      document.getElementById("download-btn").disabled = true;
+      if (chart) chart.destroy();
+      clearTrackerTables();
+    }
+
     function showSection(sectionName) {
       const viewSectionName = sectionName === "cricra" ? "tracker" : sectionName;
       ["tracker", "trades", "all-data", "cvm-filings"].forEach(name => {
@@ -828,16 +871,19 @@
       }
 
       if (sectionName === "tracker" || sectionName === "cricra") {
-        loadTables();
+        prepareTrackerLoading(sectionName);
+        const tablesPromise = loadTables(currentAssetClass);
         loadIssuerList();
-      }
 
-      if (sectionName === "tracker") {
-        loadDefaultDebentureChart();
-      }
+        if (sectionName === "tracker") {
+          loadDefaultDebentureChart();
+        }
 
-      if (sectionName === "cricra") {
-        loadDefaultCricraChart();
+        if (sectionName === "cricra") {
+          tablesPromise.then(data => {
+            if (currentAssetClass === "cricra") loadDefaultCricraChart(data);
+          });
+        }
       }
 
       if (sectionName === "trades") {
@@ -923,7 +969,7 @@
       }
 
       const lowerWords = new Set(["e", "de", "da", "do", "das", "dos", "di", "du", "del", "la", "le", "van", "von", "y"]);
-      const upperWords = new Set(["S.A.", "S/A", "SA", "S.A", "CVM", "B3", "CRI", "CRA", "BCBF", "CSN", "SPE", "FS"]);
+      const upperWords = new Set(["S.A.", "S/A", "SA", "S.A", "CVM", "B3", "CRI", "CRA", "BCBF", "CSN", "SPE", "FS", "CVC", "CM"]);
 
       const words = s.trim().replace(/\s+/g, " ").split(" ");
       const out = [];
@@ -1041,16 +1087,16 @@
 
     function chartColor(i) {
       const colors = [
-        "rgb(7,0,71)",
-        "rgb(160,60,0)",
-        "rgb(0,110,80)",
-        "rgb(120,40,120)",
-        "rgb(120,90,0)",
-        "rgb(80,80,80)",
-        "rgb(32,18,110)",
-        "rgb(180,80,80)",
-        "rgb(60,130,60)",
-        "rgb(110,70,160)"
+        "rgb(75,13,34)",
+        "rgb(150,70,38)",
+        "rgb(78,113,82)",
+        "rgb(114,52,85)",
+        "rgb(142,106,38)",
+        "rgb(93,76,82)",
+        "rgb(98,39,91)",
+        "rgb(166,88,96)",
+        "rgb(88,127,78)",
+        "rgb(130,76,126)"
       ];
       return colors[i % colors.length];
     }
@@ -1139,7 +1185,7 @@
                 size: 16,
                 weight: 'bold'
               },
-              color: "#000000"
+              color: "#2a171d"
             },
             subtitle: {
               display: !!indexLine,
@@ -1149,14 +1195,14 @@
                 size: 13,
                 weight: 'normal'
               },
-              color: "#000000",
+              color: "#2a171d",
               padding: {
                 bottom: 8
               }
             },
             legend: {
               labels: {
-                color: "#000000",
+                color: "#2a171d",
                 font: {
                   family: "Times New Roman"
                 }
@@ -1169,16 +1215,16 @@
               ticks: {
                 maxRotation: 50,
                 minRotation: 50,
-                color: "#000000",
+                color: "#2a171d",
                 font: {
                   family: "Times New Roman"
                 }
               }
             },
             y: {
-              grid: { display: true, drawBorder: false, color: "rgba(0,0,0,0.15)" },
+              grid: { display: true, drawBorder: false, color: "rgba(75,13,34,0.16)" },
               ticks: {
-                color: "#000000",
+                color: "#2a171d",
                 font: {
                   family: "Times New Roman"
                 }
@@ -1239,19 +1285,19 @@
     }
 
     async function loadIssuerData(issuer, metric) {
-      document.getElementById("msg").innerText = "Loading issuer data...";
+      setTrackerMessage("Loading issuer data...", true);
       document.getElementById("index-info").innerText = "";
 
       const resp = await fetch("/issuer-data?asset_class=" + encodeURIComponent(currentAssetClass) + "&issuer=" + encodeURIComponent(issuer));
       if (!resp.ok) {
-        document.getElementById("msg").innerText = "Error loading issuer data.";
+        setTrackerMessage("Error loading issuer data.", false);
         return;
       }
 
       const data = await resp.json();
 
       if (!data.length) {
-        document.getElementById("msg").innerText = "No debentures found for this issuer.";
+        setTrackerMessage("No debentures found for this issuer.", false);
         currentChartRows = [];
         document.getElementById("download-btn").disabled = true;
         if (chart) chart.destroy();
@@ -1263,15 +1309,14 @@
       );
 
       if (!filtered.length) {
-        document.getElementById("msg").innerText =
-          "There are no values for the selected metric for this issuer.";
+        setTrackerMessage("There are no values for the selected metric for this issuer.", false);
         currentChartRows = [];
         document.getElementById("download-btn").disabled = true;
         if (chart) chart.destroy();
         return;
       }
 
-      document.getElementById("msg").innerText = "";
+      setTrackerMessage("", false);
 
       const labelsRaw = Array.from(new Set(filtered.map(p => p.date).filter(x => x))).sort();
       const labels = labelsRaw.map(d => formatDateDDMMMYY(d));
@@ -1354,18 +1399,18 @@
         return;
       }
 
-      document.getElementById("msg").innerText = "Loading data...";
+      setTrackerMessage("Loading data...", true);
       document.getElementById("index-info").innerText = "";
 
       const resp = await fetch("/data?asset_class=" + encodeURIComponent(currentAssetClass) + "&code=" + encodeURIComponent(code));
       if (!resp.ok) {
-        document.getElementById("msg").innerText = "Error loading data.";
+        setTrackerMessage("Error loading data.", false);
         return;
       }
       const data = await resp.json();
 
       if (!data.length) {
-        document.getElementById("msg").innerText = "No data found.";
+        setTrackerMessage("No data found.", false);
         currentChartRows = [];
         document.getElementById("download-btn").disabled = true;
         if (chart) chart.destroy();
@@ -1386,15 +1431,14 @@
         metric === "BRL_CENTS" ? p.brl_cents != null : p.taxa_indicativa != null
       );
       if (!filtered.length) {
-        document.getElementById("msg").innerText =
-          "There are no values for the selected metric.";
+        setTrackerMessage("There are no values for the selected metric.", false);
         currentChartRows = [];
         document.getElementById("download-btn").disabled = true;
         if (chart) chart.destroy();
         return;
       }
 
-      document.getElementById("msg").innerText = "";
+      setTrackerMessage("", false);
 
       let lastPoint = data.reduce((a, b) => (a.date > b.date ? a : b));
       const issuerTitle = cleanIssuer(lastPoint.issuer || "");
@@ -1429,7 +1473,7 @@
         borderWidth: 2,
         pointRadius: 0,
         tension: 0.18,
-        borderColor: "rgb(7,0,71)"
+        borderColor: "rgb(75,13,34)"
       }];
 
       renderChart(chartTitle, indexLine, labels, datasets, metric);
@@ -1443,13 +1487,23 @@
       await loadData();
     }
 
-    async function loadDefaultCricraChart() {
-      const resp = await fetch("/tables?asset_class=cricra");
-      if (!resp.ok) return;
+    async function loadDefaultCricraChart(tablesData) {
+      if (currentAssetClass !== "cricra") return;
 
-      const data = await resp.json();
+      let data = tablesData;
+      if (!data) {
+        const resp = await fetch("/tables?asset_class=cricra");
+        if (!resp.ok) return;
+        data = await resp.json();
+      }
+
       const topCdi = (data.top_cdi_spread || [])[0];
-      if (!topCdi || !topCdi.code) return;
+      if (!topCdi || !topCdi.code) {
+        setTrackerMessage("No CRI/CRA data found.", false);
+        return;
+      }
+
+      if (currentAssetClass !== "cricra") return;
 
       document.getElementById("issuer").value = "";
       document.getElementById("code").value = String(topCdi.code).toUpperCase();
@@ -1458,20 +1512,20 @@
       await loadData();
     }
 
-    async function loadTables() {
-      const resp = await fetch("/tables?asset_class=" + encodeURIComponent(currentAssetClass));
-      if (!resp.ok) return;
+    async function loadTables(assetClass) {
+      const requestedAssetClass = assetClass || currentAssetClass;
+      clearTrackerTables();
+
+      const resp = await fetch("/tables?asset_class=" + encodeURIComponent(requestedAssetClass));
+      if (!resp.ok) return null;
 
       const data = await resp.json();
+      if (requestedAssetClass !== currentAssetClass) return data;
 
       const cdiBody = document.getElementById("table-cdi-body");
       const ipcaBody = document.getElementById("table-ipca-body");
       const lowBody = document.getElementById("table-low-brl-body");
       const footer = document.getElementById("tables-footer");
-      cdiBody.innerHTML = "";
-      ipcaBody.innerHTML = "";
-      lowBody.innerHTML = "";
-      footer.innerText = "";
 
       const codesSet = new Set();
 
@@ -1529,6 +1583,8 @@
         footer.innerText = "Reference data: " + d + "/" + m + "/" + y +
           " (latest available ANBIMA file)";
       }
+
+      return data;
     }
 
     function setTradesCacheProgress(percent) {

@@ -336,7 +336,7 @@ def clean_issuer_py(x):
         "e", "de", "da", "do", "das", "dos", "di", "du", "del",
         "la", "le", "van", "von", "y"
     }
-    upper_words = {"S.A.", "S/A", "SA", "S.A", "CVM", "B3", "CRI", "CRA", "BCBF", "CSN", "SPE", "FS"}
+    upper_words = {"S.A.", "S/A", "SA", "S.A", "CVM", "B3", "CRI", "CRA", "BCBF", "CSN", "SPE", "FS", "CVC", "CM"}
 
     parts = s.split(" ")
     result = []
@@ -1484,7 +1484,7 @@ def cvm_company_name_proper(value):
     }
 
     upper_words = {
-        "S.A.", "S/A", "SA", "S.A", "S", "A", "CVM", "B3", "BCBF", "CSN", "SPE", "FS"
+        "S.A.", "S/A", "SA", "S.A", "S", "A", "CVM", "B3", "BCBF", "CSN", "SPE", "FS", "CVC", "CM"
     }
 
     parts = s.split(" ")
@@ -1499,7 +1499,7 @@ def cvm_company_name_proper(value):
         upper_raw = raw.upper()
         upper_letters = letters_only.upper()
 
-        if upper_raw in upper_words or upper_letters in {"SA", "CVM", "B3", "BCBF", "CSN", "SPE", "FS"}:
+        if upper_raw in upper_words or upper_letters in {"SA", "CVM", "B3", "BCBF", "CSN", "SPE", "FS", "CVC", "CM"}:
             if upper_letters == "SA":
                 result.append("S.A.")
             else:

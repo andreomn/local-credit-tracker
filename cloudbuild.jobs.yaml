@@ -10,14 +10,14 @@ steps:
     args:
       - build
       - --tag
-      - gcr.io/debenture-tracker/anbima-to-gcs:$COMMIT_SHA
+      - gcr.io/debenture-tracker/anbima-to-gcs
       - jobs/anbima-to-gcs
 
   - id: push-anbima-download-job
     name: gcr.io/cloud-builders/docker
     args:
       - push
-      - gcr.io/debenture-tracker/anbima-to-gcs:$COMMIT_SHA
+      - gcr.io/debenture-tracker/anbima-to-gcs
     waitFor:
       - build-anbima-download-job
 
@@ -30,7 +30,7 @@ steps:
       - update
       - anbima-download-job
       - --image
-      - gcr.io/debenture-tracker/anbima-to-gcs:$COMMIT_SHA
+      - gcr.io/debenture-tracker/anbima-to-gcs
       - --region
       - southamerica-east1
     waitFor:
@@ -41,14 +41,14 @@ steps:
     args:
       - build
       - --tag
-      - gcr.io/debenture-tracker/b3-predi-to-gcs:$COMMIT_SHA
+      - gcr.io/debenture-tracker/b3-predi-job
       - jobs/b3-predi-to-gcs
 
   - id: push-b3-predi-job
     name: gcr.io/cloud-builders/docker
     args:
       - push
-      - gcr.io/debenture-tracker/b3-predi-to-gcs:$COMMIT_SHA
+      - gcr.io/debenture-tracker/b3-predi-job
     waitFor:
       - build-b3-predi-job
 
@@ -61,7 +61,7 @@ steps:
       - update
       - b3-predi-job
       - --image
-      - gcr.io/debenture-tracker/b3-predi-to-gcs:$COMMIT_SHA
+      - gcr.io/debenture-tracker/b3-predi-job
       - --region
       - southamerica-east1
     waitFor:
@@ -72,14 +72,14 @@ steps:
     args:
       - build
       - --tag
-      - gcr.io/debenture-tracker/b3-trades-to-gcs:$COMMIT_SHA
+      - gcr.io/debenture-tracker/b3-trades-job
       - jobs/b3-trades-to-gcs
 
   - id: push-b3-trades-job
     name: gcr.io/cloud-builders/docker
     args:
       - push
-      - gcr.io/debenture-tracker/b3-trades-to-gcs:$COMMIT_SHA
+      - gcr.io/debenture-tracker/b3-trades-job
     waitFor:
       - build-b3-trades-job
 
@@ -92,13 +92,13 @@ steps:
       - update
       - b3-trades-job
       - --image
-      - gcr.io/debenture-tracker/b3-trades-to-gcs:$COMMIT_SHA
+      - gcr.io/debenture-tracker/b3-trades-job
       - --region
       - southamerica-east1
     waitFor:
       - push-b3-trades-job
 
 images:
-  - gcr.io/debenture-tracker/anbima-to-gcs:$COMMIT_SHA
-  - gcr.io/debenture-tracker/b3-predi-to-gcs:$COMMIT_SHA
-  - gcr.io/debenture-tracker/b3-trades-to-gcs:$COMMIT_SHA
+  - gcr.io/debenture-tracker/anbima-to-gcs
+  - gcr.io/debenture-tracker/b3-predi-job
+  - gcr.io/debenture-tracker/b3-trades-job

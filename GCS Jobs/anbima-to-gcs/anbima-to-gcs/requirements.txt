@@ -1,0 +1,5 @@
+requests
+google-cloud-storage
+xlrd==1.2.0
+playwright
+openpyxl

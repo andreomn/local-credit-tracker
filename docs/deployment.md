@@ -76,12 +76,10 @@ This rollback also updates only the image and preserves the rest of each job's c
 
 ## Manual deployment
 
-Manual deployment should be exceptional. To run the same pipeline from a local checkout:
+Manual deployment should be exceptional. To run the same pipeline from a local checkout, no substitutions are required:
 
 ```bash
-gcloud builds submit \
-  --config=cloudbuild.jobs.yaml \
-  --project=debenture-tracker
+gcloud builds submit --config cloudbuild.jobs.yaml .
 ```
 
 To manually deploy one already-built image without rebuilding:

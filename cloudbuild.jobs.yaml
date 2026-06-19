@@ -6,6 +6,8 @@
 # updated in place with only the new image reference, preserving the existing job
 # configuration (memory, CPU, retries, timeout, service account, and environment
 # variables).
+# No substitutions are required; this file works as-is with
+# `gcloud builds submit --config cloudbuild.jobs.yaml .` and with the GitHub trigger.
 steps:
   - id: build-anbima-download-job
     name: gcr.io/cloud-builders/docker
@@ -143,11 +145,6 @@ steps:
     waitFor:
       - push-b3-trades-job-sha
       - push-b3-trades-job-latest
-
-images:
-  - gcr.io/debenture-tracker/anbima-to-gcs:latest
-  - gcr.io/debenture-tracker/b3-predi-job:latest
-  - gcr.io/debenture-tracker/b3-trades-job:latest
 
 options:
   logging: CLOUD_LOGGING_ONLY

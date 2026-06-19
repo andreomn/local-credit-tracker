@@ -1,0 +1,24 @@
+# Import with:
+#   gcloud builds triggers import --source=infra/cloudbuild/backend-jobs-trigger.yaml --project=debenture-tracker
+#
+# Replace GITHUB_OWNER before importing. This trigger deploys only after changes
+# are pushed or merged into main; feature branches do not match the branch regex.
+name: deploy-backend-cloud-run-jobs-main
+description: Build backend job images and update existing Cloud Run Jobs when main changes.
+filename: cloudbuild.jobs.yaml
+github:
+  owner: GITHUB_OWNER
+  name: local-credit-tracker
+  push:
+    branch: ^main$
+includedFiles:
+  - cloudbuild.jobs.yaml
+  - jobs/anbima-to-gcs/**
+  - jobs/b3-predi-to-gcs/**
+  - jobs/b3-trades-to-gcs/**
+ignoredFiles:
+  - docs/**
+  - frontend/**
+  - README.md
+includeBuildLogs: INCLUDE_BUILD_LOGS_WITH_STATUS
+serviceAccount: projects/debenture-tracker/serviceAccounts/cloud-build-backend-deployer@debenture-tracker.iam.gserviceaccount.com

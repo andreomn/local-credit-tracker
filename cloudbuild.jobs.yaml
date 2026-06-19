@@ -1,30 +1,18 @@
 # Cloud Build configuration for building and deploying existing Cloud Run Jobs.
 #
 # This file is intended to be executed by a GitHub-connected Cloud Build trigger
-# that matches only pushes to the main branch. Each image is tagged with the
-# immutable Git commit SHA for traceability and rollback, and also tagged as
-# latest for operator convenience. Cloud Run Jobs are updated in place with only
-# the new image reference, preserving the existing job configuration (memory,
-# CPU, retries, timeout, service account, and environment variables).
-substitutions:
-  _REGION: southamerica-east1
-  _IMAGE_PROJECT_ID: debenture-tracker
-  _ANBIMA_IMAGE: anbima-to-gcs
-  _B3_PREDI_IMAGE: b3-predi-job
-  _B3_TRADES_IMAGE: b3-trades-job
-  _ANBIMA_JOB: anbima-download-job
-  _B3_PREDI_JOB: b3-predi-job
-  _B3_TRADES_JOB: b3-trades-job
-
+# that matches only pushes to the main branch. Each image is built with the fixed
+# :latest tag required by the production Cloud Run Jobs. Cloud Run Jobs are
+# updated in place with only the new image reference, preserving the existing job
+# configuration (memory, CPU, retries, timeout, service account, and environment
+# variables).
 steps:
   - id: build-anbima-download-job
     name: gcr.io/cloud-builders/docker
     args:
       - build
       - --tag
-      - gcr.io/${_IMAGE_PROJECT_ID}/${_ANBIMA_IMAGE}:${SHORT_SHA}
-      - --tag
-      - gcr.io/${_IMAGE_PROJECT_ID}/${_ANBIMA_IMAGE}:latest
+      - gcr.io/debenture-tracker/anbima-to-gcs:latest
       - jobs/anbima-to-gcs
 
   - id: build-b3-predi-job
@@ -51,31 +39,39 @@ steps:
     name: gcr.io/cloud-builders/docker
     args:
       - push
-      - gcr.io/${_IMAGE_PROJECT_ID}/${_ANBIMA_IMAGE}:${SHORT_SHA}
+      - gcr.io/debenture-tracker/anbima-to-gcs:latest
     waitFor:
       - build-anbima-download-job
 
   - id: push-anbima-download-job-latest
     name: gcr.io/cloud-builders/docker
     args:
-      - push
-      - gcr.io/${_IMAGE_PROJECT_ID}/${_ANBIMA_IMAGE}:latest
+      - run
+      - jobs
+      - update
+      - anbima-download-job
+      - --image
+      - gcr.io/debenture-tracker/anbima-to-gcs:latest
+      - --region
+      - southamerica-east1
+      - --project
+      - debenture-tracker
     waitFor:
       - build-anbima-download-job
 
   - id: push-b3-predi-job-sha
     name: gcr.io/cloud-builders/docker
     args:
-      - push
-      - gcr.io/${_IMAGE_PROJECT_ID}/${_B3_PREDI_IMAGE}:${SHORT_SHA}
-    waitFor:
-      - build-b3-predi-job
+      - build
+      - --tag
+      - gcr.io/debenture-tracker/b3-predi-job:latest
+      - jobs/b3-predi-to-gcs
 
   - id: push-b3-predi-job-latest
     name: gcr.io/cloud-builders/docker
     args:
       - push
-      - gcr.io/${_IMAGE_PROJECT_ID}/${_B3_PREDI_IMAGE}:latest
+      - gcr.io/debenture-tracker/b3-predi-job:latest
     waitFor:
       - build-b3-predi-job
 
@@ -104,29 +100,28 @@ steps:
       - update
       - ${_ANBIMA_JOB}
       - --image
-      - gcr.io/${_IMAGE_PROJECT_ID}/${_ANBIMA_IMAGE}:${SHORT_SHA}
+      - gcr.io/debenture-tracker/b3-predi-job:latest
       - --region
-      - ${_REGION}
+      - southamerica-east1
       - --project
-      - ${_IMAGE_PROJECT_ID}
+      - debenture-tracker
     waitFor:
       - push-anbima-download-job-sha
       - push-anbima-download-job-latest
 
-  - id: deploy-b3-predi-job
-    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
-    entrypoint: gcloud
+  - id: build-b3-trades-job
+    name: gcr.io/cloud-builders/docker
     args:
-      - run
-      - jobs
-      - update
-      - ${_B3_PREDI_JOB}
-      - --image
-      - gcr.io/${_IMAGE_PROJECT_ID}/${_B3_PREDI_IMAGE}:${SHORT_SHA}
-      - --region
-      - ${_REGION}
-      - --project
-      - ${_IMAGE_PROJECT_ID}
+      - build
+      - --tag
+      - gcr.io/debenture-tracker/b3-trades-job:latest
+      - jobs/b3-trades-to-gcs
+
+  - id: push-b3-trades-job
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - gcr.io/debenture-tracker/b3-trades-job:latest
     waitFor:
       - push-b3-predi-job-sha
       - push-b3-predi-job-latest
@@ -140,22 +135,21 @@ steps:
       - update
       - ${_B3_TRADES_JOB}
       - --image
-      - gcr.io/${_IMAGE_PROJECT_ID}/${_B3_TRADES_IMAGE}:${SHORT_SHA}
+      - gcr.io/debenture-tracker/b3-trades-job:latest
       - --region
-      - ${_REGION}
+      - southamerica-east1
       - --project
-      - ${_IMAGE_PROJECT_ID}
+      - debenture-tracker
     waitFor:
       - push-b3-trades-job-sha
       - push-b3-trades-job-latest
 
 images:
-  - gcr.io/${_IMAGE_PROJECT_ID}/${_ANBIMA_IMAGE}:${SHORT_SHA}
-  - gcr.io/${_IMAGE_PROJECT_ID}/${_B3_PREDI_IMAGE}:${SHORT_SHA}
-  - gcr.io/${_IMAGE_PROJECT_ID}/${_B3_TRADES_IMAGE}:${SHORT_SHA}
+  - gcr.io/debenture-tracker/anbima-to-gcs:latest
+  - gcr.io/debenture-tracker/b3-predi-job:latest
+  - gcr.io/debenture-tracker/b3-trades-job:latest
 
 options:
   logging: CLOUD_LOGGING_ONLY
-  substitutionOption: ALLOW_LOOSE
 
 timeout: 1800s

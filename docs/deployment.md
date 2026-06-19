@@ -17,9 +17,7 @@ Google Cloud executes builds and deployments only. Cloud Run Jobs and Cloud Sche
 1. A pull request is reviewed and merged into `main`.
 2. A GitHub-connected Cloud Build trigger that matches only `^main$` starts a build with `cloudbuild.jobs.yaml`.
 3. Cloud Build builds all three backend job images.
-4. Each image is pushed to the existing GCR repository twice:
-   - an immutable commit tag: `gcr.io/debenture-tracker/<image>:<SHORT_SHA>`
-   - the convenience tag: `gcr.io/debenture-tracker/<image>:latest`
+4. Each image is pushed to the existing GCR repository with the fixed `:latest` tag expected by the existing Cloud Run Jobs.
 5. Cloud Build updates each existing Cloud Run Job in place with `gcloud run jobs update --image ...`.
 
 The deploy step intentionally updates only the container image. Existing Cloud Run Job settings are preserved, including memory, CPU, retry count, timeout, service account, and environment variables.
@@ -55,21 +53,21 @@ Prefer the least-privilege predefined or custom roles that satisfy those permiss
 
 ## Rollback procedure
 
-Use the immutable commit tag from a previous successful Cloud Build run:
+Because production uses the fixed `:latest` tag, rollback is performed by rebuilding the previous good Git commit and pushing `:latest` again, or by retagging a known-good image digest as `latest`.
 
 ```bash
 gcloud run jobs update anbima-download-job \
-  --image=gcr.io/debenture-tracker/anbima-to-gcs:<SHORT_SHA> \
+  --image=gcr.io/debenture-tracker/anbima-to-gcs:latest \
   --region=southamerica-east1 \
   --project=debenture-tracker
 
 gcloud run jobs update b3-predi-job \
-  --image=gcr.io/debenture-tracker/b3-predi-job:<SHORT_SHA> \
+  --image=gcr.io/debenture-tracker/b3-predi-job:latest \
   --region=southamerica-east1 \
   --project=debenture-tracker
 
 gcloud run jobs update b3-trades-job \
-  --image=gcr.io/debenture-tracker/b3-trades-job:<SHORT_SHA> \
+  --image=gcr.io/debenture-tracker/b3-trades-job:latest \
   --region=southamerica-east1 \
   --project=debenture-tracker
 ```
@@ -83,15 +81,14 @@ Manual deployment should be exceptional. To run the same pipeline from a local c
 ```bash
 gcloud builds submit \
   --config=cloudbuild.jobs.yaml \
-  --project=debenture-tracker \
-  --substitutions=SHORT_SHA=$(git rev-parse --short HEAD)
+  --project=debenture-tracker
 ```
 
 To manually deploy one already-built image without rebuilding:
 
 ```bash
 gcloud run jobs update b3-trades-job \
-  --image=gcr.io/debenture-tracker/b3-trades-job:<SHORT_SHA> \
+  --image=gcr.io/debenture-tracker/b3-trades-job:latest \
   --region=southamerica-east1 \
   --project=debenture-tracker
 ```
@@ -99,7 +96,7 @@ gcloud run jobs update b3-trades-job \
 ## Production safeguards and best practices
 
 - Deployments happen only from merges or direct pushes to `main`; feature branch commits do not deploy.
-- Images are tagged immutably with the Git commit SHA for auditability and rollback.
+- Images use the fixed `:latest` tag required by the existing Cloud Run Jobs and deployment trigger.
 - Existing Cloud Run Jobs are updated in place and are never recreated by the pipeline.
 - Cloud Scheduler jobs are not managed by this pipeline.
 - Frontend deployment is not changed.

@@ -21,7 +21,4 @@ ignoredFiles:
   - frontend/**
   - README.md
 includeBuildLogs: INCLUDE_BUILD_LOGS_WITH_STATUS
-substitutions:
-  _REGION: southamerica-east1
-  _IMAGE_PROJECT_ID: debenture-tracker
 serviceAccount: projects/debenture-tracker/serviceAccounts/cloud-build-backend-deployer@debenture-tracker.iam.gserviceaccount.com

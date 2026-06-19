@@ -6,13 +6,13 @@ This repository contains three backend Cloud Run Jobs under [`jobs/`](../jobs/).
 
 | Job | GitHub path | Cloud Run Job name |
 | --- | --- | --- |
-| ANBIMA to GCS | `jobs/anbima-to-gcs/anbima-to-gcs` | `anbima-to-gcs` |
-| B3 reference rates to GCS | `jobs/b3-predi-to-gcs/b3-predi-to-gcs` | `b3-predi-to-gcs` |
+| ANBIMA to GCS | `jobs/anbima-to-gcs` | `anbima-to-gcs` |
+| B3 reference rates to GCS | `jobs/b3-predi-to-gcs` | `b3-predi-to-gcs` |
 | B3 trades to GCS | `jobs/b3-trades-to-gcs` | `b3-trades-to-gcs` |
 
 ## ANBIMA to GCS
 
-- **GitHub path:** `jobs/anbima-to-gcs/anbima-to-gcs`
+- **GitHub path:** `jobs/anbima-to-gcs`
 - **Cloud Run Job name:** `anbima-to-gcs`
 - **What it does:**
   - Downloads the latest ANBIMA secondary-market debenture spreadsheet available in the recent lookback window.
@@ -30,7 +30,7 @@ This repository contains three backend Cloud Run Jobs under [`jobs/`](../jobs/).
 
 ## B3 reference rates to GCS
 
-- **GitHub path:** `jobs/b3-predi-to-gcs/b3-predi-to-gcs`
+- **GitHub path:** `jobs/b3-predi-to-gcs`
 - **Cloud Run Job name:** `b3-predi-to-gcs`
 - **What it does:**
   - Uses Playwright to open the B3 reference rates page.

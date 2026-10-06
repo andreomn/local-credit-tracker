@@ -1,6 +1,6 @@
 # Local Credit Tracker
 
-Web app to track Brazilian local credit instruments (debentures, trades, CVM filings).
+Web app to track Brazilian local credit instruments (debentures, trades, CVM filings)....
 
 ## Features
 

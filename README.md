@@ -4,7 +4,7 @@ Web app to track Brazilian local credit instruments (debentures, trades, CVM fil
 
 ## Features
 
-- Debenture price & yield tracking (ANBIMA)
+- Debenture price & yield tracking (ANBIMA )
 - B3 trade data (last 10 days)
 - CVM filings tracking
 - CSV export
